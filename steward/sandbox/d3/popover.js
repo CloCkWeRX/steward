@@ -767,6 +767,7 @@ var showPop = function(device) {
           })
          .attr("id", "button-" + action + "-climate")
          .attr("height", "22px")
+         .text(action)
          .on("click", function() {climateTogglehvac(event, action)});
       });
 

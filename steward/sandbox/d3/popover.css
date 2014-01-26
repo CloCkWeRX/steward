@@ -30,9 +30,8 @@
 }
 
 .popover-name { 
-        position: absolute;
-        top: 23px;
-        left: 65px;
+        float: left;
+        margin-top: 23px;
         font-family: "Roadgeek 2005 Series D";
         font-size: 26px;
         line-height: 26px;
@@ -51,13 +50,23 @@
 #primary-controls 
 	{ position: absolute; top: 0px; left: 0px; width: 597px; height: 60px; z-index: 1px; }
 	
-	#actor { position: absolute; top: 14px; left: 15px; }
+	#actor { 
+    float: left; 
+    margin-left: 15px; 
+    margin-top: 15px;
+  }
   .label.generic-button {
     float: left;
-    height: 22px;
-    width: 100px;
+    height: 20px;
+    width: 60px;
+    margin-right: 5px;
     background: url('popovers/assets/generic-button.svg');
     color: white;
+    text-align: center;
+    font-size: 80%;
+    cursor: pointer;
+
+    margin-top: 24px;
   }
   .label.generic-button.off {
     color: rgb(100, 100, 100);
