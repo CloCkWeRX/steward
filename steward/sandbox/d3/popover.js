@@ -759,34 +759,17 @@ var showPop = function(device) {
        .text(device.name);
        
      if (device.info.hvac) {
-		 div.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-one-climate")
-			 .attr("src", function() {return (device.info.hvac === "off") ? "popovers/assets/off-button.svg" : "popovers/assets/off-button-off.svg"} )
-			 .attr("height", "22px")
-			 .on("click", function() {climateTogglehvac(event, "off")});
-		 div.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-two-climate")
-			 .attr("src", function() {return (device.info.hvac === "fan") ? "popovers/assets/fan-button.svg" : "popovers/assets/fan-button-off.svg"} )
-			 .attr("height", "22px")
-			 .on("click", function() {climateTogglehvac(event, "fan")});
-		 div.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-three-climate")
-			 .attr("src", function() {return (device.info.hvac === "cool") ? "popovers/assets/cool-button.svg" : "popovers/assets/cool-button-off.svg"} )
-			 .attr("height", "22px")
-			 .on("click", function() {climateTogglehvac(event, "cool")});
-		 div.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-four-climate")
-			 .attr("src", function() {return (device.info.hvac === "heat") ? "popovers/assets/heat-button.svg" : "popovers/assets/heat-button-off.svg"} )
-			 .attr("height", "22px")
-			 .on("click", function() {climateTogglehvac(event, "heat")});
+
+      ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
+        div.append("div")
+         .attr("class", "label")
+         .append("img")
+           .attr("id", "button-" + action + "-climate")
+         .attr("src", function() {return (device.info.hvac === action) ? "popovers/assets/" + action  + "-button.svg" : "popovers/assets/" + action + "-button-off.svg"} )
+         .attr("height", "22px")
+         .on("click", function() {climateTogglehvac(event, action)});
+      });
+
 		 d3.select("#popover-name").style("width", "230px");
      }
      div.append("div")
@@ -799,10 +782,10 @@ var showPop = function(device) {
      
      function climateTogglehvac(event, type) {
        elem = event.target;
-       document.getElementById("button-one-climate").src = "popovers/assets/off-button-off.svg";
-       document.getElementById("button-two-climate").src = "popovers/assets/fan-button-off.svg";
-       document.getElementById("button-three-climate").src = "popovers/assets/cool-button-off.svg";
-       document.getElementById("button-four-climate").src = "popovers/assets/heat-button-off.svg";
+       ['off', 'fan', 'cool', 'heat'].forEach(function(action) {
+         document.getElementById("button-" + action + "-climate").src = "popovers/assets/" + action + "-button-off.svg";
+       });
+
        elem.src = "popovers/assets/" + type + "-button.svg";
        newPerform.parameter.hvac = type;
        sendData();
@@ -1514,14 +1497,10 @@ var updatePopover = function(device, update) {
 
   function updateThermostatPop() {
     if (update.info.hasOwnProperty("hvac")) {
-      d3.select("#button-one-climate")
-        .attr("src", function() {return (update.info.hvac === "off")  ? "popovers/assets/off-button.svg"  : "popovers/assets/off-button-off.svg"} );
-      d3.select("#button-two-climate")
-        .attr("src", function() {return (update.info.hvac === "fan")  ? "popovers/assets/fan-button.svg"  : "popovers/assets/fan-button-off.svg"} );
-      d3.select("#button-three-climate")
-        .attr("src", function() {return (update.info.hvac === "cool") ? "popovers/assets/cool-button.svg" : "popovers/assets/cool-button-off.svg"} );
-      d3.select("#button-four-climate")
-        .attr("src", function() {return (update.info.hvac === "heat") ? "popovers/assets/heat-button.svg" : "popovers/assets/heat-button-off.svg"} );
+      ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
+        d3.select("#button-" + action + "-climate")
+          .attr("src", function() {return (update.info.hvac === action)  ? "popovers/assets/" + action + "-button.svg"  : "popovers/assets/" + action + "-button-off.svg"} );
+      });
     }
     if (update.info.hasOwnProperty("goalTemperature")) {
       d3.select("#temperature-knob")
