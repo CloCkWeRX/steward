@@ -832,8 +832,7 @@ var showPop = function(device) {
          .attr("id", "temperature-readout")
          .attr("class", "temperature-readout medium-label")
          .style("left", (goalTempLeft(device.info.goalTemperature) - 10) + "px")
-         .text(function() { return (isPlaceMetric()) ? device.info.goalTemperature.toFixed(1) + "°C" : (((parseInt(device.info.goalTemperature, 10) * 9) / 5) + 32).toFixed(1) + "°F" });
-         
+         .text(function() { return renderTemperature(device.info.goalTemperature); });
      var timedFan = (device.info.fan && (device.info.fan !== "auto") && (device.info.fan !== "on"));
      div = pop.append("div")
        .attr("id", "fantime-slider-wrapper");
@@ -1532,8 +1531,8 @@ var updatePopover = function(device, update) {
       d3.select("#temperature-readout")
         .transition()
         .duration(600)
-        .style("left", (goalTempLeft(update.info.goalTemperature) - 10) + "px")
-        .text(function() { return (isPlaceMetric()) ? update.info.goalTemperature.toFixed(1) + "°C" : (((parseInt(update.info.goalTemperature, 10) * 9) / 5) + 32).toFixed(1) + "°F" });
+        .style("left", (goalTempLeft(update.info.goalTemperature) - 10) + "px")       
+        .text(function() { return renderTemperature(update.info.goalTemperature); });
     }
     var timedFan = (update.info.hasOwnProperty("fan") && (update.info.fan !== "auto") && (update.info.fan !== "on"));
     if (timedFan) {
@@ -1850,7 +1849,7 @@ function motiveGoalTemp(info) {
     goalTemp = parseInt(info.hvac, 10);
   }
   if (!isNaN(goalTemp)) {
-    goalTemp = (isPlaceMetric()) ? goalTemp : ((goalTemp * 9) / 5) + 32;
+    goalTemp = (isPlaceMetric()) ? goalTemp : asFahrenheit(goalTemp);
   }
   return goalTemp;
 }
@@ -1864,12 +1863,20 @@ function motiveGoalTempText(info) {
   if (isNaN(temp)) {
     return "";
   } else {
-    return temp.toFixed(1) + ((isMetric) ? "°C" : "°F");
+    return renderTemperature(temp);
   }
 }
 
 function isPlaceMetric() {
   return (place_info.displayUnits === "metric");
+}
+
+function asFahrenheit(celsius) {
+  return ((celsius * 9) / 5) + 32;
+}
+
+function renderTemperature(temperature) {
+  return isPlaceMetric() ? parseInt(temperature, 10).toFixed(1) + "°C" : asFahrenheit(parseInt(temperature, 10)).toFixed(1) + "°F";
 }
 
 function sendData(device) {
