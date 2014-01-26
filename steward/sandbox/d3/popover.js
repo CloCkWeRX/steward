@@ -762,10 +762,10 @@ var showPop = function(device) {
 
       ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
         div.append("div")
-         .attr("class", "label")
-         .append("img")
-           .attr("id", "button-" + action + "-climate")
-         .attr("src", function() {return (device.info.hvac === action) ? "popovers/assets/" + action  + "-button.svg" : "popovers/assets/" + action + "-button-off.svg"} )
+         .attr("class", function () {
+            return device.info.hvac === action) ? "label generic-button" : "label generic-button off";
+          })
+         .attr("id", "button-" + action + "-climate")
          .attr("height", "22px")
          .on("click", function() {climateTogglehvac(event, action)});
       });
@@ -783,10 +783,10 @@ var showPop = function(device) {
      function climateTogglehvac(event, type) {
        elem = event.target;
        ['off', 'fan', 'cool', 'heat'].forEach(function(action) {
-         document.getElementById("button-" + action + "-climate").src = "popovers/assets/" + action + "-button-off.svg";
+         document.getElementById("button-" + action + "-climate").className = "label generic-button off";
        });
 
-       elem.src = "popovers/assets/" + type + "-button.svg";
+       elem.className = "label generic-button";
        newPerform.parameter.hvac = type;
        sendData();
      }

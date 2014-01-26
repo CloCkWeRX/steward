@@ -52,11 +52,16 @@
 	{ position: absolute; top: 0px; left: 0px; width: 597px; height: 60px; z-index: 1px; }
 	
 	#actor { position: absolute; top: 14px; left: 15px; }
-	#button-off-climate { position: absolute; top: 24px; left: 317px; }
-	#button-fan-climate { position: absolute; top: 24px; left: 383px; }
-	#button-cool-climate { position: absolute; top: 24px; left: 449px; }
-	#button-heat-climate { position: absolute; top: 24px; left: 515px; }
-
+  .label.generic-button {
+    float: left;
+    height: 22px;
+    width: 100px;
+    background: url('popovers/assets/generic-button.svg');
+    color: white;
+  }
+  .label.generic-button.off {
+    color: rgb(100, 100, 100);
+  }
 	
 #on-off-slider-wrapper { position: absolute; top: 25px; left: 290px; }
 	.on-off-slider { position: absolute; top: 0px; left: 25px; }
