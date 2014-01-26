@@ -763,7 +763,7 @@ var showPop = function(device) {
       ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
-            return device.info.hvac === action) ? "label generic-button" : "label generic-button off";
+            return device.info.hvac === action ? "label generic-button" : "label generic-button off";
           })
          .attr("id", "button-" + action + "-climate")
          .attr("height", "22px")
