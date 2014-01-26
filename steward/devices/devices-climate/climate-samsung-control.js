@@ -224,19 +224,23 @@ Thermostat.operations = {
           self.hvac.onoff(false);
           break;
         case 'on':
-          self.hvac.onoff(true);   
+          self.hvac.onoff(true);
           break;
         case 'cool':  
+          self.hvac.onoff(true);
           self.hvac.mode('Cool');
           break;
         case 'heat':
+          self.hvac.onoff(true);
           self.hvac.mode('Heat');
           break;
         case 'dry':
+          self.hvac.onoff(true);
           self.hvac.mode('Dry');         
           break;        
         case 'fan':
-          self.hvac.mode('wind');
+          self.hvac.onoff(true);
+          self.hvac.mode('Wind');
           break;
       }
     });
