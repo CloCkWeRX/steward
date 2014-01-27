@@ -2,7 +2,6 @@
 // search for TBD to see what to change
 
 exports.start = function() {};
-if (true) return;
 
 // load the module that knows how to discover/communicate with a bulb
 var samsung     = require('samsung-airconditioner')
@@ -50,10 +49,10 @@ var Thermostat = exports.Device = function(deviceID, deviceUID, info) {
       switch (key) {
         case "AC_FUN_POWER":
           if (state[key] == 'On') {
-            translated_state.hvac = 'on';
+            translated_state.power = 'on';
           }
           if (state[key] == 'Off') {
-            translated_state.hvac = 'off';
+            translated_state.power = 'off';
           }
           break;
         case "AC_FUN_OPMODE":
@@ -70,8 +69,8 @@ var Thermostat = exports.Device = function(deviceID, deviceUID, info) {
             translated_state.hvac = 'fan';
           }
           if (state[key] == "Auto") {
-            translated_state.hvac = 'on';
-          }            
+            translated_state.hvac = 'auto';
+          }
           break;
         case "AC_FUN_TEMPSET":
           translated_state.goalTemperature = state[key];
@@ -120,6 +119,7 @@ var Thermostat = exports.Device = function(deviceID, deviceUID, info) {
   
   self.update(self, {
     'hvac': 'off',
+    'power': 'off',
     'fan': 0,
     'temperature': 0
   }, 'present');
@@ -220,27 +220,30 @@ Thermostat.operations = {
 
     attempt_perform('hvac', function(value) {
       switch (value) {
+        case 'auto':  
+          self.hvac.mode('Auto');
+          break;        
+        case 'cool':  
+          self.hvac.mode('Cool');
+          break;
+        case 'heat':
+          self.hvac.mode('Heat');
+          break;
+        case 'dry':
+          self.hvac.mode('Dry');         
+          break;        
+        case 'fan':
+          self.hvac.mode('Wind');
+          break;
+      }
+    });
+    attempt_perform('power', function(value) {
+      switch (value) {
         case 'off':
           self.hvac.onoff(false);
           break;
         case 'on':
           self.hvac.onoff(true);
-          break;
-        case 'cool':  
-          self.hvac.onoff(true);
-          self.hvac.mode('Cool');
-          break;
-        case 'heat':
-          self.hvac.onoff(true);
-          self.hvac.mode('Heat');
-          break;
-        case 'dry':
-          self.hvac.onoff(true);
-          self.hvac.mode('Dry');         
-          break;        
-        case 'fan':
-          self.hvac.onoff(true);
-          self.hvac.mode('Wind');
           break;
       }
     });
@@ -336,7 +339,8 @@ var validate_perform = function(perform, parameter) {
         return result;
       }
 
-      checkParam('hvac', params, result, false, { heat: 1, cool: 1, fan: 1, off: 1 });
+      checkParam('power', params, result, false, { on: 1, off: 1 });
+      checkParam('hvac', params, result, false, { heat: 1, cool: 1, fan: 1, off: 1, auto: 1 });
       checkParam('fan', params, result, true, { off: 1, on: 1, auto: 1 });
       checkParam('goalTemperature', params, result, true, {});
     }
@@ -362,7 +366,8 @@ exports.start = function() {
                                    , lastSample      : 'timestamp'
                                    , temperature     : 'celsius'
                                    , humidity        : 'percentage'
-                                   , hvac            : [ 'cool', 'heat', 'fan', 'dry', 'off', 'on', ]
+                                   , power           : [ 'on', 'off' ]
+                                   , hvac            : [ 'cool', 'heat', 'fan', 'dry', 'off', 'auto', ]
                                    , fan             : [ 'on', 'off', 'high', 'mid', 'low', 'auto', 'milliseconds' ]
                                    , goalTemperature : 'celsius'
                                    }
