@@ -1353,7 +1353,7 @@ var single_thermostat_instructions = function(device) {
   instructions.push('set desired temperature');
 
   if (device.info.fan) {
-    instructions.push('set fan time';
+    instructions.push('set fan time');
   }
   return instructions.join('<br />');
 };
