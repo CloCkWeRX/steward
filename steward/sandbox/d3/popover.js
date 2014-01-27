@@ -761,7 +761,7 @@ var showPop = function(device) {
 
      if (device.info.power) {
        div = pop.append("div")
-         .attr("id", "on-off-slider-wrapper-switch");
+         .attr("id", "on-off-slider-wrapper-hvac");
        div.append("div")
            .attr("class", "on-off-slider")
            .append("img")
@@ -815,12 +815,6 @@ var showPop = function(device) {
      }
 
      function climateTogglePower(event, type) {
-       elem = event.target;
-       ['off', 'on'].forEach(function(action) {
-         document.getElementById("button-" + action + "-climate-power").className = "label generic-button off";
-       });
-
-       elem.className = "label generic-button";
        newPerform.parameter.power = type;
        sendData();
      }

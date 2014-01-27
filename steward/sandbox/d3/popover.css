@@ -142,6 +142,9 @@
 #equalizer { position: absolute; top: 345px; left: 258px; }
 
 /* Climate */
+#on-off-slider-wrapper-hvac {position: absolute; top: 25px; left: 490px; }
+#hvac-controlers { position: absolute; width: 350px; left: 200px; top: 110px; }
+
 #temperature-wrapper
 	{ position: absolute; top: 55px; left: 0px; width: 597px; height: 60px; z-index: 1px; }
 	.temperature { position: absolute; top: 20px; left: 210px; height: 24px; width: 360px; background:url('popovers/assets/slider.transparent.long.svg'); background-position: -5px -4px; }
@@ -158,7 +161,7 @@
 	.fantime-slider-label { position: absolute; top: 20px; left: 32px; }
 	.fantime-slider-readout { position: absolute; top: 175px; left: 15px; padding: 1px; }
 
-#thermostat-wrapper { position: absolute; top: 154px; left: 212px; }
+#thermostat-wrapper { position: absolute; top: 164px; left: 212px; }
 	.thermostat-knob { position: absolute; top: 0px; left: 0px; }
 	.thermostat-bkg { position: absolute; top: 112px; left: 112px; }
 	
