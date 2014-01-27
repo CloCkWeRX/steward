@@ -760,7 +760,7 @@ var showPop = function(device) {
  
 
      if (device.info.power) {
-       div = pop.append("div")
+       div = pop.append("div");
       ['off', 'on'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
@@ -773,7 +773,7 @@ var showPop = function(device) {
       });
      }       
      if (device.info.hvac) {
-      div = pop.append("div")
+      div = pop.append("div");
       ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
