@@ -757,21 +757,33 @@ var showPop = function(device) {
 	   .on("blur", setDeviceName)
 	   .on("keydown", setDeviceName)
        .text(device.name);
-       
-     if (device.info.hvac) {
+ 
 
+     if (device.info.power) {
+       div = pop.append("div")
+      ['off', 'on'].forEach(function (action) {
+        div.append("div")
+         .attr("class", function () {
+            return device.info.power === action ? "label generic-button" : "label generic-button off";
+          })
+         .attr("id", "button-" + action + "-climate-power")
+         .attr("height", "20px")
+         .text(action)
+         .on("click", function() {climateTogglePower(event, action)});
+      });
+     }       
+     if (device.info.hvac) {
+      div = pop.append("div")
       ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
             return device.info.hvac === action ? "label generic-button" : "label generic-button off";
           })
          .attr("id", "button-" + action + "-climate")
-         .attr("height", "22px")
+         .attr("height", "20px")
          .text(action)
-         .on("click", function() {climateTogglehvac(event, action)});
+         .on("click", function() {climateToggleHVAC(event, action)});
       });
-
-		 d3.select("#popover-name").style("width", "230px");
      }
      div.append("div")
        .attr("id", "done-climate")
@@ -781,7 +793,7 @@ var showPop = function(device) {
          .attr("height", "22px")
          .on("click", cancel);
      
-     function climateTogglehvac(event, type) {
+     function climateToggleHVAC(event, type) {
        elem = event.target;
        ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function(action) {
          document.getElementById("button-" + action + "-climate").className = "label generic-button off";
@@ -791,7 +803,17 @@ var showPop = function(device) {
        newPerform.parameter.hvac = type;
        sendData();
      }
-     
+
+     function climateTogglePower(event, type) {
+       elem = event.target;
+       ['off', 'on'].forEach(function(action) {
+         document.getElementById("button-" + action + "-climate-power").className = "label generic-button off";
+       });
+
+       elem.className = "label generic-button";
+       newPerform.parameter.power = type;
+       sendData();
+     }
      
      div = pop.append("div")
        .attr("id", "temperature-wrapper");
