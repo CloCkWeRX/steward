@@ -760,7 +760,7 @@ var showPop = function(device) {
        
      if (device.info.hvac) {
 
-      ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
+      ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
             return device.info.hvac === action ? "label generic-button" : "label generic-button off";
@@ -783,7 +783,7 @@ var showPop = function(device) {
      
      function climateTogglehvac(event, type) {
        elem = event.target;
-       ['off', 'fan', 'cool', 'heat'].forEach(function(action) {
+       ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function(action) {
          document.getElementById("button-" + action + "-climate").className = "label generic-button off";
        });
 
@@ -1498,7 +1498,7 @@ var updatePopover = function(device, update) {
 
   function updateThermostatPop() {
     if (update.info.hasOwnProperty("hvac")) {
-      ['off', 'fan', 'cool', 'heat'].forEach(function (action) {
+      ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function (action) {
         d3.select("#button-" + action + "-climate")
           .attr("src", function() {return (update.info.hvac === action)  ? "popovers/assets/" + action + "-button.svg"  : "popovers/assets/" + action + "-button-off.svg"} );
       });
