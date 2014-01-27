@@ -760,20 +760,30 @@ var showPop = function(device) {
  
 
      if (device.info.power) {
-       div = pop.append("div");
-      ['off', 'on'].forEach(function (action) {
-        div.append("div")
-         .attr("class", function () {
-            return device.info.power === action ? "label generic-button" : "label generic-button off";
-          })
-         .attr("id", "button-" + action + "-climate-power")
-         .attr("height", "20px")
-         .text(action)
-         .on("click", function() {climateTogglePower(event, action)});
-      });
+       div = pop.append("div")
+         .attr("id", "on-off-slider-wrapper-switch");
+       div.append("div")
+           .attr("class", "on-off-slider")
+           .append("img")
+             .attr("src", "popovers/assets/slider.on-off.svg")
+             .on("click", function() { climateTogglePower(event, device.info.power === 'on' ? 'off' : 'on') });
+       div.append("div")
+           .attr("class", "on-off-knob")
+           .attr("id", "on-off-knob")
+           .style("left", function() { return ((device.info.power === "on") ? onOffSlider.max : onOffSlider.min) + "px" })
+           .on("click", function() { climateTogglePower(event, device.info.power === 'on' ? 'off' : 'on') })
+           .append("img")
+             .attr("src", "popovers/assets/knob.small.svg");
+       div.append("div")
+           .attr("class", "on-label small-label")
+           .text("ON");
+       div.append("div")
+           .attr("class", "off-label small-label")
+           .text("OFF");
      }       
      if (device.info.hvac) {
-      div = pop.append("div");
+      div = pop.append("div")
+        .attr('id', "hvac-controls");
       ['off', 'fan', 'cool', 'heat', 'auto'].forEach(function (action) {
         div.append("div")
          .attr("class", function () {
