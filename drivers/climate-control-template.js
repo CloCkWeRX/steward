@@ -120,7 +120,7 @@ Thermostat.operations = {
       var goalTemperature;
 
       goalTemperature = parseInt(value, 10);
-      if (isNaN(goalTemperature)) break;
+      if (isNaN(goalTemperature)) return;
 // TBD: set the desired temperature here...
     });
 
