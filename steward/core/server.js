@@ -264,9 +264,10 @@ var start = function(port, secureP) {
     if (secureP) {
       fs.exists(__dirname + '/../db/' + steward.uuid + '.js', function(existsP) {
         var crt2, params;
-        if (!existsP) return;
 
+        if (!existsP) return;
         params = require(__dirname + '/../db/' + steward.uuid).params;
+
         crt2 = __dirname + '/../sandbox/cloud.crt';
         fs.unlink(crt2, function(err) {
           if ((!!err) && (err.code !== 'ENOENT')) logger.error('cloud', { event: 'fs.unlink', diagnostic: err.message });
@@ -354,7 +355,7 @@ var keycheck = function (params) {
   if (!exports.vous) exports.vous = params.name;
 
   fs.exists(key, function(existsP) {
-    var alternates;
+    var alternates, i, label, x;
 
     if (existsP) return;
 
@@ -364,6 +365,11 @@ var keycheck = function (params) {
                  , 'IP:'  + params.server.hostname
                  ];
     steward.forEachAddress(function(address) { alternates.push('IP:' + address); });
+    for (i = 0; i < params.labels.length; i++) {
+      label = params.labels[i];
+      x = label.lastIndexOf('.');
+      if (x !== -1) alternates.push('DNS:' + label.substring(0, x + 1) + params.name);
+    }
 
     x509keygen.x509_keygen({ subject    : '/CN=' + params.name
                            , certfile   : crt
@@ -497,6 +503,10 @@ var rendezvous = function(params, portno, u) {
 
     retry(1);
   }).on('error', function(err) {
+    if (err.errno === 'EMFILE') {
+      logger.alert('rendezvous', { event: 'error', server: u.host, diagnostic: err.message });
+      return process.exit(2);
+    }
     logger.error('rendezvous', { event: 'error', server: u.host, diagnostic: err.message });
 
     retry(10);

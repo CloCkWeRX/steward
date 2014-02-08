@@ -173,6 +173,9 @@ var showPop = function(device) {
 	case "/device/lighting/":
 		w = 485, h = 497, t = 100, l = 133;
 		break;
+	case "/device/media/":
+		w = 598, h = 497, t = 100, l = 83;
+		break;
 	case "/device/motive/":
 		w = 598, h = 407, t = 170, l = 80;
 		break;
@@ -183,8 +186,11 @@ var showPop = function(device) {
 	case "/device/wearable/":
 		w = 420, h = 340, t = 215, l = 165;
 		break;
+	case "/device/sensor/":
+		w = 485, h = 497, t = 290, l = 133;
+		break
 	default:
-		w = 598, h = 497, t = 100, l = 83;
+		w = 485, h = 497, t = 290, l = 133;
 		break
   }
 
@@ -488,142 +494,160 @@ var showPop = function(device) {
      finishCommon("done-wide");
      d3.select("#done").attr("id", "done-motive");
      
-     div = pop.append("div")
-       .attr("id", "hvac-wrapper-motive");
-     div.append("div")
-       .attr("id", "on-off-slider-motive")
-       .append("img")
-         .attr("src", "popovers/assets/slider.on-off.svg")
-         .on("click", function() { toggleOnOff("motiveTemp"); });
-     div.append("div")
-       .attr("id", "on-off-knob")
-       .style("left", function() { return ((device.info.hvac === "off") ? onOffSliderMotive.min : onOffSliderMotive.max) + "px" })
-       .on("click", function() { toggleOnOff("motiveTemp"); })
-       .append("img")
-         .attr("src", "popovers/assets/knob.small.svg");
-     div.append("div")
-       .attr("class", "small-label")
-       .attr("id", "on-label-motive")
-       .text("ON");
-     div.append("div")
-       .attr("class", "small-label")
-       .attr("id", "off-label-motive")
-       .text("OFF");
-       
-     div.append("div")
-	   .attr("class", "label")
-	   .attr("id", "hvac-bracket")
-	   .append("img")
-	      .attr("src", "popovers/assets/hvac.bracket.svg")
-		  .attr("height", "21px");
-		  
-	 div2 = div.append("div")
-	   .attr("class", "temperature-motive")
-	   .attr("id", "temperature-motive")
-	   .style("background-image", function() { return ((device.info.hvac === "off") ? 
-	       "url(\'popovers/assets/slider.transparent.short.off.svg\')" :
-           "url(\'popovers/assets/slider.transparent.short.svg\')")});
-     elem = div2.append("img")
-       .attr("id", "temperature-knob-motive")
-       .attr("class", "temperature-knob-motive")
-       .attr("src", function() { return ((device.info.hvac === "off") ?
-           "popovers/assets/knob.small.off.svg" :
-           "popovers/assets/knob.svg");})
-	 elem
-	   .style("left", "0px")
-       .transition()
-       .duration(600)
-       .style("left", motiveGoalTempLeft(device.info) + "px");
-     elem.call(drag);
+     if (device.info.hvac) {
+			 div = pop.append("div")
+				 .attr("id", "hvac-wrapper-motive");
+			 div.append("div")
+				 .attr("id", "on-off-slider-motive")
+				 .append("img")
+					 .attr("src", "popovers/assets/slider.on-off.svg")
+					 .on("click", function() { toggleOnOff("motiveTemp"); });
+			 div.append("div")
+				 .attr("id", "on-off-knob")
+				 .style("left", function() { return ((device.info.hvac === "off") ? onOffSliderMotive.min : onOffSliderMotive.max) + "px" })
+				 .on("click", function() { toggleOnOff("motiveTemp"); })
+				 .append("img")
+					 .attr("src", "popovers/assets/knob.small.svg");
+			 div.append("div")
+				 .attr("class", "small-label")
+				 .attr("id", "on-label-motive")
+				 .text("ON");
+			 div.append("div")
+				 .attr("class", "small-label")
+				 .attr("id", "off-label-motive")
+				 .text("OFF");
+				 
+			 div.append("div")
+			 .attr("class", "label")
+			 .attr("id", "hvac-bracket")
+			 .append("img")
+					.attr("src", "popovers/assets/hvac.bracket.svg")
+				.attr("height", "21px");
+				
+		 div2 = div.append("div")
+			 .attr("class", "temperature-motive")
+			 .attr("id", "temperature-motive")
+			 .style("background-image", function() { return ((device.info.hvac === "off") ? 
+					 "url(\'popovers/assets/slider.transparent.short.off.svg\')" :
+						 "url(\'popovers/assets/slider.transparent.short.svg\')")});
+			 elem = div2.append("img")
+				 .attr("id", "temperature-knob-motive")
+				 .attr("class", "temperature-knob-motive")
+				 .attr("src", function() { return ((device.info.hvac === "off") ?
+						 "popovers/assets/knob.small.off.svg" :
+						 "popovers/assets/knob.svg");})
+		 elem
+			 .style("left", "0px")
+				 .transition()
+				 .duration(600)
+				 .style("left", motiveGoalTempLeft(device.info) + "px");
+			 elem.call(drag);
+			 
+			 offset = parseInt(d3.select("#temperature-motive").style("left"), 10);
+	
+			 elem = div.append("div")
+					 .attr("class", "temperature-readout-motive")
+					 .attr("id", "temperature-readout-motive")
+					 .style("color", function() { return ((device.info.hvac === "off") ? "#444" : "#fff") } )
+					 .style("left", (motiveGoalTempLeft(device.info) - 10) + offset + "px");
+			 elem.append("span")
+					.attr("class", "temp-label")
+					.text(motiveGoalTempText(device.info));
+     }
      
-     offset = parseInt(d3.select("#temperature-motive").style("left"), 10);
-
-     elem = div.append("div")
-         .attr("class", "temperature-readout-motive")
-         .attr("id", "temperature-readout-motive")
-         .style("color", function() { return ((device.info.hvac === "off") ? "#444" : "#fff") } )
-         .style("left", (motiveGoalTempLeft(device.info) - 10) + offset + "px");
-     elem.append("span")
-        .attr("class", "temp-label")
-        .text(motiveGoalTempText(device.info));
-
-     if (device.info.sunroof !== "none") {
+     if (device.info.sunroof && device.info.sunroof !== "none") {
        div2 = pop.append("div")
          .attr("id", "sunroof-wrapper");
-		 div2.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-one")
-			 .attr("src", function() {return (device.info.sunroof === "open") ? "popovers/assets/open-button.svg" : "popovers/assets/open-button-off.svg"} )
-			 .attr("height", "20px")
-			 .on("click", function() {motiveToggleSunroof(event, "open")});
-		 div2.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-two")
-			 .attr("src", function() {return (device.info.sunroof === "comfort") ? "popovers/assets/comfort-button.svg" : "popovers/assets/comfort-button-off.svg"} )
-			 .attr("height", "20px")
-			 .on("click", function() {motiveToggleSunroof(event, "comfort")});
-		 div2.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-three")
-			 .attr("src", function() {return (device.info.sunroof === "vent") ? "popovers/assets/vent-button.svg" : "popovers/assets/vent-button-off.svg"} )
-			 .attr("height", "20px")
-			 .on("click", function() {motiveToggleSunroof(event, "vent")});
-		 div2.append("div")
-		   .attr("class", "label")
-		   .append("img")
-		     .attr("id", "button-four")
-			 .attr("src", function() {return (device.info.sunroof === "closed") ? "popovers/assets/closed-button.svg" : "popovers/assets/closed-button-off.svg"} )
-			 .attr("height", "20px")
-			 .on("click", function() {motiveToggleSunroof(event, "closed")});
-		 div2.append("div")
-		   .attr("class", "label")
-		   .attr("id", "sunroof-bracket")
-		   .append("img")
-			 .attr("src", "popovers/assets/sunroof.bracket.svg")
-			 .attr("height", "21px");
-		 d3.select("#popover-name").style("width", "230px");
+			 div2.append("div")
+				 .attr("class", "label")
+				 .append("img")
+					 .attr("id", "button-one")
+				 .attr("src", function() {return (device.info.sunroof === "open") ? "popovers/assets/open-button.svg" : "popovers/assets/open-button-off.svg"} )
+				 .attr("height", "20px")
+				 .on("click", function() {motiveToggleSunroof(event, "open")});
+			 div2.append("div")
+				 .attr("class", "label")
+				 .append("img")
+					 .attr("id", "button-two")
+				 .attr("src", function() {return (device.info.sunroof === "comfort") ? "popovers/assets/comfort-button.svg" : "popovers/assets/comfort-button-off.svg"} )
+				 .attr("height", "20px")
+				 .on("click", function() {motiveToggleSunroof(event, "comfort")});
+			 div2.append("div")
+				 .attr("class", "label")
+				 .append("img")
+					 .attr("id", "button-three")
+				 .attr("src", function() {return (device.info.sunroof === "vent") ? "popovers/assets/vent-button.svg" : "popovers/assets/vent-button-off.svg"} )
+				 .attr("height", "20px")
+				 .on("click", function() {motiveToggleSunroof(event, "vent")});
+			 div2.append("div")
+				 .attr("class", "label")
+				 .append("img")
+					 .attr("id", "button-four")
+				 .attr("src", function() {return (device.info.sunroof === "closed") ? "popovers/assets/closed-button.svg" : "popovers/assets/closed-button-off.svg"} )
+				 .attr("height", "20px")
+				 .on("click", function() {motiveToggleSunroof(event, "closed")});
+			 div2.append("div")
+				 .attr("class", "label")
+				 .attr("id", "sunroof-bracket")
+				 .append("img")
+				 .attr("src", "popovers/assets/sunroof.bracket.svg")
+				 .attr("height", "21px");
+			 d3.select("#popover-name").style("width", "230px");
      }
      
      div = pop.append("div")
          .attr("id", "big-button-wrapper-motive");
-		 div2 = div.append("div")
-		   .attr("class", "label")
-		   .attr("id", "big-button-one-motive")
-		   .style("text-align", "center");
-		 div2.append("img")
-			 .attr("src", "popovers/assets/headlights-on.svg")
-			 .attr("height", "152px")
-			 .style("margin-bottom", "12px")
-			 .on("click", function() {motiveCommand(event, "lights")});
-		 div2.append("span")
-		   .text("HEADLIGHTS");
-		 div2 = div.append("div")
-		   .attr("class", "label")
-		   .attr("id", "big-button-two-motive")
-		   .style("text-align", "center");
-		 div2.append("img")
-			 .attr("src", "popovers/assets/horn-on.svg")
-			 .attr("height", "152px")
-			 .style("margin-bottom", "12px")
-			 .on("click", function() {motiveCommand(event, "horn")});
-		 div2.append("span").text("HORN");
-		 div2 = div.append("div")
-		   .attr("class", "label")
-		   .attr("id", "big-button-three-motive")
-		   .style("text-align", "center");
-		 div2.append("img")
-		     .attr("id", "doorLocks")
-			 .attr("src", function() { return (device.info.doors === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg"} )
-			 .attr("height", "152px")
-			 .style("margin-bottom", "12px")
-			 .on("click", function() {motiveCommand(event, "doors")});
-		 div2.append("span")
-		     .attr("id", "doorLockAction")
-		     .text(function() { return (device.info.doors === "locked") ? "UNLOCK DOORS" : "LOCK DOORS"});
-
+         
+     if (hasLockPerform) {
+			 div2 = div.append("div")
+				 .attr("class", "label")
+				 .attr("id", "big-button-two-motive")
+				 .style("text-align", "center");
+			 div2.append("img")
+				 .attr("id", "vehicleLocks")
+				 .attr("src", function() { return (device.status === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg"} )
+				 .attr("height", "152px")
+				 .style("margin-bottom", "12px")
+				 .on("click", function() {motiveCommand(event, "locks")});
+			 div2.append("span")
+					 .attr("id", "vehicleLockAction")
+					 .text(function() { return (device.status === "locked") ? "UNLOCK VEHICLE" : "LOCK VEHICLE"});
+     } else {
+			 div2 = div.append("div")
+				 .attr("class", "label")
+				 .attr("id", "big-button-one-motive")
+				 .style("text-align", "center");
+			 div2.append("img")
+				 .attr("src", "popovers/assets/headlights-on.svg")
+				 .attr("height", "152px")
+				 .style("margin-bottom", "12px")
+				 .on("click", function() {motiveCommand(event, "lights")});
+			 div2.append("span")
+				 .text("HEADLIGHTS");
+			 div2 = div.append("div")
+				 .attr("class", "label")
+				 .attr("id", "big-button-two-motive")
+				 .style("text-align", "center");
+			 div2.append("img")
+				 .attr("src", "popovers/assets/horn-on.svg")
+				 .attr("height", "152px")
+				 .style("margin-bottom", "12px")
+				 .on("click", function() {motiveCommand(event, "horn")});
+			 div2.append("span").text("HORN");
+			 div2 = div.append("div")
+				 .attr("class", "label")
+				 .attr("id", "big-button-three-motive")
+				 .style("text-align", "center");
+			 div2.append("img")
+				 .attr("id", "doorLocks")
+				 .attr("src", function() { return (device.info.doors === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg"} )
+				 .attr("height", "152px")
+				 .style("margin-bottom", "12px")
+				 .on("click", function() {motiveCommand(event, "doors")});
+			 div2.append("span")
+				 .attr("id", "doorLockAction")
+				 .text(function() { return (device.info.doors === "locked") ? "UNLOCK DOORS" : "LOCK DOORS"});
+     }
      function motiveToggleSunroof(event, type) {
        elem = event.target;
        document.getElementById("button-one").src = "popovers/assets/open-button-off.svg";
@@ -656,10 +680,26 @@ var showPop = function(device) {
              event.target.nextSibling.innerText = "UNLOCK DOORS"
            }
            break;
+         case "locks":
+           if (event.target.src.indexOf("lock-on") !== -1) {
+             event.target.src = "popovers/assets/lock-off.svg";
+             newPerform.perform = "unlock";
+             event.target.nextSibling.innerText = "LOCK VEHICLE"
+           } else {
+             event.target.src = "popovers/assets/lock-on.svg";
+             newPerform.perform = "lock";
+             event.target.nextSibling.innerText = "UNLOCK VEHICLE"
+           }
+           break;
          default:
            break;
        }
        sendData();
+     }
+     
+     function hasLockPerform() {
+       var performs = stack[0].message.result.actors[currDevice.deviceType].perform;
+       return (performs[0] === "lock" || performs[0] === "unlock")
      }
    }
    
@@ -843,6 +883,7 @@ var showPop = function(device) {
          .attr("class", "temperature-readout medium-label")
          .style("left", (goalTempLeft(device.info.goalTemperature) - 10) + "px")
          .text(function() { return renderTemperature(device.info.goalTemperature); });
+         
      var timedFan = (device.info.fan && (device.info.fan !== "auto") && (device.info.fan !== "on"));
      div = pop.append("div")
        .attr("id", "fantime-slider-wrapper");
@@ -1663,37 +1704,48 @@ var updatePopover = function(device, update) {
         .attr("src", function() {return (update.info.sunroof === "closed") ? "popovers/assets/closed-button.svg" : "popovers/assets/closed-button-off.svg"} );
     }
     
-    d3.select("#on-off-knob")
-      .transition()
-      .duration(600)
-      .style("left", function() { return ((update.info.hvac === "off") ? onOffSliderMotive.min : onOffSliderMotive.max) + "px"});
-      
-    d3.select("#temperature-motive")
-      .style("background-image", function() { return ((update.info.hvac === "off") ? 
-	       "url(\'popovers/assets/slider.transparent.short.off.svg\')" :
-           "url(\'popovers/assets/slider.transparent.short.svg\')")});
-    d3.select("#temperature-knob-motive")
-      .attr("src", function() { return ((update.info.hvac === "off") ?
-           "popovers/assets/knob.small.off.svg" :
-           "popovers/assets/knob.svg");})
-      .transition()
-      .duration(600)
-      .style("left", motiveGoalTempLeft(update.info) + "px");
-
-    offset = parseInt(d3.select("#temperature-motive").style("left"), 10);
-
-    d3.select("#temperature-readout-motive")
-      .style("color", function() { return ((update.info.hvac === "off") ? "#444" : "#fff") } )
-      .transition()
-      .duration(600)
-      .style("left", (motiveGoalTempLeft(update.info) - 10) + offset + "px")
-      .text(motiveGoalTempText(update.info));
+    if (update.info.hvac) {
+			d3.select("#on-off-knob")
+				.transition()
+				.duration(600)
+				.style("left", function() { return ((update.info.hvac === "off") ? onOffSliderMotive.min : onOffSliderMotive.max) + "px"});
+				
+			d3.select("#temperature-motive")
+				.style("background-image", function() { return ((update.info.hvac === "off") ? 
+					 "url(\'popovers/assets/slider.transparent.short.off.svg\')" :
+						 "url(\'popovers/assets/slider.transparent.short.svg\')")});
+			d3.select("#temperature-knob-motive")
+				.attr("src", function() { return ((update.info.hvac === "off") ?
+						 "popovers/assets/knob.small.off.svg" :
+						 "popovers/assets/knob.svg");})
+				.transition()
+				.duration(600)
+				.style("left", motiveGoalTempLeft(update.info) + "px");
+	
+			offset = parseInt(d3.select("#temperature-motive").style("left"), 10);
+	
+			d3.select("#temperature-readout-motive")
+				.style("color", function() { return ((update.info.hvac === "off") ? "#444" : "#fff") } )
+				.transition()
+				.duration(600)
+				.style("left", (motiveGoalTempLeft(update.info) - 10) + offset + "px")
+				.text(motiveGoalTempText(update.info));
+    }
     
-    d3.select("#doorLocks")
-      .attr("src", function() { return (update.info.doors === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg"});
-    d3.select("#doorLockAction")
-      .text(function() { return (update.info.doors === "locked") ? "UNLOCK DOORS" : "LOCK DOORS"});
-
+    if (update.info.doors) {
+			d3.select("#doorLocks")
+				.attr("src", function() { return (update.info.doors === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg" });
+			d3.select("#doorLockAction")
+				.text(function() { return (update.info.doors === "locked") ? "UNLOCK DOORS" : "LOCK DOORS" });
+    }
+    
+    if (update.status === "locked" || update.status === "unlocked") {
+			d3.select("#vehicleLocks")
+				.attr("src", function() { return (update.status === "locked") ? "popovers/assets/lock-on.svg" : "popovers/assets/lock-off.svg" });
+			d3.select("#vehicleLockAction")
+				.text(function() { return (update.status === "locked") ? "UNLOCK VEHICLE" : "LOCK VEHICLE" });
+			newPerform.perform = (update.status === "locked") ? "lock" : "unlock";
+    }
     newPerform.parameter = update.info;
   }
   
@@ -1753,7 +1805,7 @@ function goalTempLeft(goalTempC) {
   
   var tempRange = (isMetric) ? {min: 4, max: 38} : {min: 40, max: 100};
   var goalTemp = (isMetric) ? goalTempC : ((parseFloat(goalTempC) * 9) / 5) + 32;
-  result = (goalTemp / (tempRange.max + tempRange.min)) * elemEdges.max;
+  result = ((goalTemp - tempRange.min) / (tempRange.max - tempRange.min)) * elemEdges.max;
   return result;
 };
      
@@ -1767,7 +1819,7 @@ function fanTimeTop(value) {
 
 function drawTemperatureArc(pop, temp) {
   var div;
-  var colorRange = {temp  :  [7.2, 12.8, 18.3, 23.9, 29.4, 35],
+  var colorRange = {temp  :  [4.0, 11.6, 16.9, 22.8, 28.5, 35],
 	            color :  ["#529dcc", "#43be93", "#0ea74b", "#b2cb25", "#f47f1f", "#ee3324"]};
   if (document.getElementById("thermostat-wrapper")) {
   	document.getElementById("thermostat-wrapper").removeChild(document.getElementById("tempArcCanvas"));
@@ -1834,15 +1886,15 @@ function levelLeft(level) {
        
 function motiveGoalTempLeft(info) {
   var result = 0;
+  var goalTemp = (isPlaceMetric()) ? motiveGoalTemp(info) : asFahrenheit(motiveGoalTemp(info));
   var isMetric = isPlaceMetric();
   var elemEdges = {min: 0, max: 115};
   var tempRange = (isMetric) ? {min: 4, max: 38} : {min: 40, max: 100};
-  var goalTemp = motiveGoalTemp(info);
   if (isNaN(goalTemp)) return elemEdges.min;
   
   if (goalTemp <= tempRange.min) return elemEdges.min;
   if (goalTemp >= tempRange.max) return elemEdges.max;
-  result = (goalTemp / (tempRange.max + tempRange.min)) * elemEdges.max;
+  result = ((goalTemp - tempRange.min) / (tempRange.max - tempRange.min)) * elemEdges.max;
   return result;
 }
      
@@ -1862,10 +1914,11 @@ function motiveGoalTemp(info) {
 
 function motiveGoalTempText(info) {
   var temp = motiveGoalTemp(info);
+  var rangeTemp = (isPlaceMetric()) ? motiveGoalTemp(info) : asFahrenheit(motiveGoalTemp(info));
   var isMetric = isPlaceMetric();
   var tempRange = (isMetric) ? {min: 4, max: 38} : {min: 40, max: 100};
-  if (temp > tempRange.max) temp = "> " + tempRange.max; 
-  if (temp < tempRange.min) temp = "< " + tempRange.min; 
+  if (rangeTemp > tempRange.max) temp = "> " + tempRange.max; 
+  if (rangeTemp < tempRange.min) temp = "< " + tempRange.min; 
   if (isNaN(temp)) {
     return "";
   } else {

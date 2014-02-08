@@ -92,6 +92,8 @@ var showLogin = function(changeLogin) {
     
   if (document.getElementById('relogin')) document.getElementById('relogin').setAttribute('onclick', '');
   
+  document.loginForm.userName.focus();
+  
   function isRemoteAccess() {
     return (/\.taas\./.test(location.hostname));
   }
@@ -570,7 +572,7 @@ var bootable = { ecobee         :
                  , name         : 'ecobee'
                  , actor        : '/device/gateway/ecobee/cloud'
                  , info         :
-                   { appkey     : ''
+                   { appKey     : ''
                    }
                  }
                , 'flower power' :
@@ -597,6 +599,17 @@ var bootable = { ecobee         :
                  , info         :
                    { appkey     : ''
                    , credentials: ''
+                   }
+                 }
+               , lockitron      :
+                 { text         : 'If you have a Lockitron account, the steward can let you lock and unlock your locks'
+                 , instructions : 'Go to https://api.lockitron.com, create an account, and generate an accessToken.'
+                 , site         : 'https://api.lockitron.com/'
+                 , icon         : ''
+                 , name         : 'lockitron'
+                 , actor        : '/device/gateway/lockitron/cloud'
+                 , info         :
+                   { accessToken: ''
                    }
                  }
                , mqtt           :
@@ -634,6 +647,17 @@ var bootable = { ecobee         :
                  , info         :
                    { email      : ''
                    , passphrase : ''
+                   }
+                 }
+               , nma            :
+                 { text         : 'If you have a Notify my Android account, the steward can automatically update you with alerts, etc.'
+                 , instructions : 'Go to http://www.notifymyandroid.com, create an account, and generate an API key.'
+                 , site         : 'https://www.notifymyandroid.com/login.php'
+                 , icon         : ''
+                 , name         : 'nma'
+                 , actor        : '/device/indicator/nma/text'
+                 , info         :
+                   { apikey     : ''
                    }
                  }
                , prowl          :

@@ -1,6 +1,6 @@
-// prowl - iOS Push Notifications: http://prowlapp.com
+// nma - Notify My Android Notifications: http://notifymyandroid.com
 
-var prowler     = require('node-prowl')
+var nmaer       = require('notify-my-android')
   , util        = require('util')
   , winston     = require('winston')
   , serialize   = require('winston/lib/winston/common').serialize
@@ -15,7 +15,7 @@ var prowler     = require('node-prowl')
 var logger = indicator.logger;
 
 
-var Prowl = exports.Device = function(deviceID, deviceUID, info) {
+var NMA = exports.Device = function(deviceID, deviceUID, info) {
   var self     = this
     , previous = {}
     ;
@@ -32,7 +32,7 @@ var Prowl = exports.Device = function(deviceID, deviceUID, info) {
       self.status = 'ready';
       self.changed();
     }
-    logger.debug('device/' + self.deviceID, { limit: remaining + ' remaining calls this hour' });
+    logger.debug('device/' + self.deviceID, { limit: remaining.calls + ' remaining calls this hour' });
   };
 
   self.whatami = info.deviceType;
@@ -51,7 +51,7 @@ var Prowl = exports.Device = function(deviceID, deviceUID, info) {
   self.prefix2 = (!!self.info.prefix) ? (self.info.prefix + '/')  : '';
   self.priority = winston.config.syslog.levels[self.info.priority || 'notice'] || winston.config.syslog.levels.notice;
   self.info.priority = utility.value2key(winston.config.syslog.levels, self.priority);
-  self.prowl = new prowler(self.info.apikey);
+  self.nma = new nmaer(self.info.apikey);
   self.status = 'ready';
   self.elide = [ 'apikey' ];
   self.changed();
@@ -70,10 +70,10 @@ var Prowl = exports.Device = function(deviceID, deviceUID, info) {
       if ((!!previous[datum.level][datum.message]) && (previous[datum.level][datum.message] > now)) continue;
       previous[datum.level][datum.message] = now + (60 * 1000);
 
-      parameter = category + ': ' + datum.message;
+      parameter = datum.message;
       if (!!datum.meta) parameter += ' ' + serialize(datum.meta);
 
-      self.prowl.push(self.prefix2 + parameter, self.appname, self.growl);
+      self.nma.notify('steward', self.prefix2 + category, parameter, self.growl);
     }
   });
 
@@ -83,10 +83,10 @@ var Prowl = exports.Device = function(deviceID, deviceUID, info) {
     if (request === 'perform') return self.perform(self, taskID, perform, parameter);
   });
 };
-util.inherits(Prowl, indicator.Device);
+util.inherits(NMA, indicator.Device);
 
 
-Prowl.prototype.perform = function(self, taskID, perform, parameter) {
+NMA.prototype.perform = function(self, taskID, perform, parameter) {
   var param, params, updateP;
 
   try { params = JSON.parse(parameter); } catch(ex) { params = {}; }
@@ -116,7 +116,7 @@ Prowl.prototype.perform = function(self, taskID, perform, parameter) {
   if ((!winston.config.syslog.levels[params.priority])
         || (winston.config.syslog.levels[params.priority] < self.priority)) return false;
 
-  self.prowl.push(self.prefix + params.message, self.appname, self.growl);
+  self.nma.notify(self.appname, self.prefix + params.message, 'X', self.growl);
   return steward.performed(taskID);
 };
 
@@ -124,7 +124,7 @@ var validate_create = function(info) {
   var result = { invalid: [], requires: [] };
 
   if (!info.apikey) result.requires.push('apikey');
-  else if ((typeof info.apikey !== 'string') || (info.apikey.length !== 40)) result.invalid.push('apikey');
+  else if ((typeof info.apikey !== 'string') || (info.apikey.length !== 48)) result.invalid.push('apikey');
 
   if ((!!info.priority) && (!winston.config.syslog.levels[info.priority])) result.invalid.push('priority');
 
@@ -139,7 +139,7 @@ var validate_perform = function(perform, parameter) {
   if (!!parameter) try { params = JSON.parse(parameter); } catch(ex) { result.invalid.push('parameter'); }
 
   if (perform === 'set') {
-    if (!params.apikey) params.apikey = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+    if (!params.apikey) params.apikey = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
     return validate_create(params);
   }
 
@@ -159,11 +159,11 @@ var validate_perform = function(perform, parameter) {
 
 
 exports.start = function() {
-  steward.actors.device.indicator.prowl = steward.actors.device.indicator.prowl ||
-      { $info     : { type: '/device/indicator/prowl' } };
+  steward.actors.device.indicator.nma = steward.actors.device.indicator.nma ||
+      { $info     : { type: '/device/indicator/nma' } };
 
-  steward.actors.device.indicator.prowl.text =
-      { $info     : { type       : '/device/indicator/prowl/text'
+  steward.actors.device.indicator.nma.text =
+      { $info     : { type       : '/device/indicator/nma/text'
                     , observe    : [ ]
                     , perform    : [ 'growl' ]
                     , properties : { name     : true
@@ -178,5 +178,5 @@ exports.start = function() {
                     , perform    : validate_perform
                     }
       };
-  devices.makers['/device/indicator/prowl/text'] = Prowl;
+  devices.makers['/device/indicator/nma/text'] = NMA;
 };

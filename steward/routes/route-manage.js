@@ -67,7 +67,7 @@ var route = function(ws, tag) {
       }
     }
 
-    if (!accessP(best, ws.clientInfo, tag)) {
+    if (!accessP(best, ws.clientInfo, message, tag)) {
       error(ws, tag, 'route', message.requestID, false, 'unknown api: ' + path);
       return;
     }
@@ -78,11 +78,12 @@ var route = function(ws, tag) {
 };
 
 
-var accessP = function(api, clientInfo, tag) {
+var accessP = function(api, clientInfo, message, tag) {
   var levels, role, user;
 
   if (clientInfo.loopback) return true;
 
+  if (!places) places = require('./../actors/actor-place');
   user = users.id2user(clientInfo.userID);
   role = (!!user) ? user.userRole : 'none';
   levels = { master   : access.level.read   | access.level.perform | access.level.write | access.level.manage
@@ -91,7 +92,8 @@ var accessP = function(api, clientInfo, tag) {
            , monitor  : access.level.read
            , device   : access.level.attach
            , cloud    : access.level.peer
-           , none     : clientInfo.local ? access.level.read : access.level.none
+           , none     : !clientInfo.local ? access.level.none
+                                          : (places.place1.info.strict === 'off') ? access.level.perform : access.level.read
            }[role];
   if (!levels) {
       logger.warning(tag, { event: 'access', diagnostic: 'unknown authorization role', role: role });
@@ -100,8 +102,13 @@ var accessP = function(api, clientInfo, tag) {
 
   if ((api.access !== access.level.none) && (levels === access.level.none)) return false;
 
-  if (!places) places = require('./../actors/actor-place');
   if ((api.access !== access.level.none) && (places.place1.info.strict !== 'off') && (!(levels & api.access))) {
+    if ((clientInfo.subnet) && (message.path === '/api/v1/actor/perform/place') && (message.perform === 'set')
+            && (users.count() === 0)) {
+      logger.warning(tag, { event: 'access', diagnostic: 'setting developer mode', role: role, resource: 'manage' });
+      return true;
+    }
+
     logger.warning(tag, { event      : 'access'
                         , diagnostic : 'unauthorized'
                         , role       : role

@@ -1,6 +1,6 @@
 // Connected by TCP LED and CFL bulbs, powered by GreenWave Reality
 
-var gop         = require('node-greenwave-gop')
+var gop         = require('greenwave-gop')
   , util        = require('util')
   , url         = require('url')
   , db          = require('./../../core/database').db
@@ -237,9 +237,9 @@ var scan = function () {
       info = { source     : 'mdns'
              , controller : controller
              , device     : { url          : url.format(controller.options)
-                            , name         : controller.params.host
+                            , name         : controller.params.name
                             , manufacturer : ''
-                            , model        : { name        : controller.params.host
+                            , model        : { name        : controller.params.name
                                              , description : ''
                                              , number      : ''
                                              }
@@ -251,8 +251,7 @@ var scan = function () {
              , deviceType : steward.actors.device.gateway['greenwave-gop'].$info.type
            };
       info.url = info.device.url;
-      info.deviceType = 'GreenWave GOP';
-      info.deviceType2 = 'urn:schemas-upnp-org:device:Basic:1';
+      info.deviceType = '/device/gateway/greenwave-gop/lighting';
       info.id = info.device.unit.udn;
       if (!!devices.devices[info.id]) return;
 
@@ -282,7 +281,7 @@ exports.start = function() {
       , $validate : { perform    : devices.validate_perform
                     }
       };
-  devices.makers['GreenWave GOP'] = GreenWaveGOP;
+  devices.makers['/device/gateway/greenwave-gop/lighting'] = GreenWaveGOP;
 
   steward.actors.device.lighting.tcpi = steward.actors.device.lighting.tcpi ||
       { $info     : { type: '/device/lighting/tcpi' } };
