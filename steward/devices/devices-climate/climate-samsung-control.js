@@ -296,14 +296,12 @@ var validate_perform = function(perform, parameter) {
 
   if (!Thermostat.operations[perform]) return devices.validate_perform(perform, parameter);
 
-
   if (!params) return result;
 
   devices.validate_param('power',           params, result, false, { off: 1, on:  1 });
   devices.validate_param('hvac',            params, result, false, { off: 1, fan: 1, heat: 1, cool: 1, auto: 1 });
   devices.validate_param('fan',             params, result, true,  { off: 1, on:  1, auto: 1 });
   devices.validate_param('goalTemperature', params, result, true,  { });
->>>>>>> 426d6b8e5611381823eba34d187ffbb03834c21a
 
   return result;
 };
