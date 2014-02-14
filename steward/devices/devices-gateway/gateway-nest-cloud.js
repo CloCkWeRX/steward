@@ -87,7 +87,7 @@ Cloud.prototype.login = function(self) {
     if (!!self.timer) { clearInterval(self.timer); self.timer = null; }
     setTimeout(function() { self.login(self); }, 30 * 1000);
   }).login(self.info.email, self.info.passphrase, function(err, data) {/* jshint unused: false */
-    if (err) { self.nest = null; return self.error(self, err); }
+    if (!!err) { self.nest = null; return self.error(self, err); }
 
     self.status = 'ready';
     self.changed();
@@ -290,10 +290,11 @@ exports.start = function() {
 
     now = new Date().getTime();
     if (now >= later) {
-      later = now + (10 * 1000);
+      later = now + (30 * 1000);
 
       f = function() { broker.publish('actors', 'scan', '', '/device/gateway/nest/cloud'); };
-      for (i = 0; i < 10; i++) setTimeout(f, i * 1000);
+      for (i = 0; i < 15; i++) setTimeout(f, i * 2000);
+      f();
     }
 
     if ((!!macaddrs[macaddr]) || (ipaddr === '0.0.0.0')) return;

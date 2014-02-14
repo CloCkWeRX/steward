@@ -1,3 +1,8 @@
+html { height: 100%; }
+body { height: 100%; margin: 0px; padding: 0px; }
+#map-canvas { position: absolute; top: 125px; left: 80px; height: 500px; width: 600px; border: 9px solid #333; }
+#closeme { position: absolute; top: 108px; left: 665px; z-index: 1000; }
+
 #chart {
   position: relative;
   background: #000;
@@ -170,6 +175,8 @@
 text {
   font: 10px sans-serif;
 }
+
+.clickable-text { text-decoration: underline; cursor: pointer; }
 
 g text {
         font-family: "Roadgeek 2005 Series D";

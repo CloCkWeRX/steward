@@ -56,7 +56,7 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
 
     if (!message.clientName) message.clientName = '';
 
-    if (!!users[uuid])                                      return error(false, 'duplicate uuid');
+    if (!!users[uuid])                                      return error(false, 'duplicate uuid', 'user/' + users[uuid].userID);
     if (!!name2user(name))                                  return error(false, 'duplicate name');
     users[uuid] = {};
   } else {
@@ -70,7 +70,8 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
 
     if (!message.comments) message.comments = '';
 
-    if (!!clients[uuid])                                    return error(false, 'duplicate uuid');
+    if (!!clients[uuid])                                    return error(false, 'duplicate uuid',
+                                                                         'user/' + user.userName + '/' +clients[uuid].clientID);
     if (!!name2client(user, name))                          return error(false, 'duplicate name');
     clients[uuid] = {};
   }
@@ -243,7 +244,6 @@ var list = function(logger, ws, api, message, tag) {/* jshint unused: false */
         who = 'user/' + user.userName + '/' + client.clientID;
         results.result.clients[who] = proplist2(null, client, user);
         if (!masterP) continue;
-if(true) continue;
 
         results.result.clients[who].otpURL =
                        client.clientAuthAlg

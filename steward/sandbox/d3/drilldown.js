@@ -363,7 +363,7 @@ var onUpdate_drilldown = function(updates) {
       currDevice.device.name = update.name;
       document.getElementById("actor-big-icon").style.backgroundColor = statusColor(update);
       document.getElementById("actor-big-name").style.color = statusColor(update);
-      document.getElementById("actor-big-name").innerText = currDevice.device.name;
+      document.getElementById("actor-big-name").textContent = currDevice.device.name;
       if (document.getElementById("single-device-instructions")) {
         document.getElementById("single-device-instructions").innerHTML = entry.instrux(currDevice.device);
       }
@@ -399,7 +399,7 @@ var device_drilldown = function(name, devices, arcs, instructions) {
   div.setAttribute('style', 'position: absolute; top: 20px; left: 20px; margin-bottom: 8px; width: 44px; height: 44px; background-color: #fff;');
   img = document.createElement('img');
   img.setAttribute('src', 'actors/home.svg');
-  img.setAttribute('onclick', 'javascript:goback();');
+  img.setAttribute('onclick', 'javascript:if (document.getElementById("map-canvas")) {document.body.removeChild(document.getElementById("map-canvas"))}; goback();');
   div.appendChild(img);
   chart.appendChild(div);
 
@@ -550,7 +550,8 @@ var drawArcs = function(arcs) {
 
   index = 0.7; // Reassign index values for arcs subset
   for (; i < limit; i++) {
-     labels += arcs[i].label + '<br />';
+     labels += arcLabelHTML(arcs[i].label);
+//     labels += arcs[i].label + '<br />';
 //     values += '<div class="label">' + arcs[i].cooked + '</div>';
     arcs[i].index = index;
     arcz.push(arcs[i]);
@@ -674,6 +675,23 @@ var drawArcs = function(arcs) {
       txt = txt.replace(re, "±");
     }
     return txt;
+  }
+  
+  function arcLabelHTML(labelText) {
+    var result = "";
+    switch (labelText.toLowerCase()) {
+      case "location":
+        if (currDevice.device.info.hasOwnProperty("locations") && currDevice.device.info.locations.length > 0) {
+          result += "<span class='clickable-text' onclick='javascript:showLocations(event)'>" + labelText + "</span>";
+        } else {
+          result += labelText;
+        }
+        break;
+      default:
+        result += labelText;
+        break;
+    }
+    return (result + "<br/>");
   }
 };
 
@@ -1813,6 +1831,164 @@ var multiple_drilldown = function(name, members) {
     }
   }
 };
+
+var showLocations = function(evt) {
+  var allLocs, count, i, image, j, lines, loc, locArray, locs, map, mapOptions, mapCanvas, marker, roadAtlassStyles, roadMapType, styledMapOptions;
+  if (!document.getElementById('googleMapsAPI')) {
+    loadScript();
+  } else {
+    if (document.getElementById('map-canvas')) {
+      chart.removeChild(document.getElementById('closeme'));
+      document.body.removeChild(document.getElementById('map-canvas'));
+      return;
+    }
+    
+		mapCanvas = document.createElement('div');
+		mapCanvas.id = 'map-canvas';
+		document.body.appendChild(mapCanvas);
+
+		div = document.createElement('div');
+		div.setAttribute('id', 'closeme');
+		img = document.createElement('img');
+		img.setAttribute('src', 'popovers/assets/close.svg');
+		img.setAttribute('onclick', 'javascript:showLocations()');
+		div.appendChild(img);
+		chart.appendChild(div);
+    
+    loc = currDevice.device.info.location;
+    mapOptions = {
+      zoom: 12,
+      center: new google.maps.LatLng(parseFloat(loc[0]), parseFloat(loc[1])),
+      mapTypeControl: true,
+      mapTypeControlOptions: {
+        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+        mapTypeIds: [google.maps.MapTypeId.HYBRID, 'usroadatlas']
+      }
+    };
+		roadAtlasStyles = [
+			{
+				featureType: 'road.highway',
+				elementType: 'geometry',
+				stylers: [
+					{ color: '#ffd809' },
+					{ saturation: 0 },
+					{ lightness: 0 }
+				]
+			},{
+				featureType: 'road.arterial',
+				elementType: 'geometry',
+				stylers: [
+					{ color: '#eeeeee' },
+					{ visibility: 'on' },
+				]
+			},{
+				featureType: 'road.local',
+				elementType: 'geometry',
+				stylers: [
+					{ color: '#eeeeee' },
+					{ visibility: 'simplified' }
+				]
+			},{
+				featureType: 'water',
+				elementType: 'geometry',
+				stylers: [
+					{ saturation: 40 },
+					{ lightness: 40 }
+				]
+			},{
+				featureType: 'road.highway',
+				elementType: 'labels',
+				stylers: [
+					{ visibility: 'on' },
+					{ saturation: 98 }
+				]
+			},{
+				featureType: 'administrative.locality',
+				elementType: 'labels',
+				stylers: [
+					{ hue: '#4b2057' },
+					{ saturation: 50 },
+					{ lightness: -10 },
+					{ gamma: 0.90 }
+				]
+			},{
+				featureType: 'transit.line',
+				elementType: 'geometry',
+				stylers: [
+					{ hue: '#ff0000' },
+					{ visibility: 'on' },
+					{ lightness: -70 }
+				]
+			},{
+				featureType: 'landscape',
+				elementType: 'geometry',
+				stylers: [
+					{ color: '#ffffff' },
+				]
+			}    
+		];
+    map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+		styledMapOptions = {
+			name: 'Road Map'
+		};
+	
+		roadMapType = new google.maps.StyledMapType(
+				roadAtlasStyles, styledMapOptions);
+	
+		map.mapTypes.set('usroadatlas', roadMapType);
+		map.setMapTypeId('usroadatlas');
+    
+    locs = [];
+    allLocs = currDevice.device.info.locations;
+    
+    for (i = 0; i < allLocs.length; i++) {
+      locArray = allLocs[i].split(',');
+      locs[i] = new google.maps.LatLng(parseFloat(locArray[0]), parseFloat(locArray[1]))
+    }
+    
+    image = {
+      url: 'popovers/assets/actors/t.svg'
+    };
+    marker = new google.maps.Marker({
+      position: new google.maps.LatLng(parseFloat(loc[0]), parseFloat(loc[1])),
+      icon: image,
+      map: map
+    });
+    
+    lines = [];
+    function addLine(i, start, end) {
+      lines[i] = new google.maps.Polyline({
+        path: [start, end],
+        strokeColor: '#9b00c1',
+        strokeWeight: 4,
+        map: map
+      });
+      if (count === locs.length - 1) {
+        count = 0;
+        for (j = 0; j < lines.length; j++) {
+          lines[j].setMap(null);
+        }
+      }
+    }
+    
+    count = 0;
+    function drawLines() {
+      window.setInterval(function() {
+        addLine(count, locs[count], locs[++count]);
+      }, 800);
+    }
+    
+    if (locs.length > 1) drawLines();
+  }
+    
+  function loadScript() {
+    var script = document.createElement('script');
+    script.id = 'googleMapsAPI';
+    script.type = 'text/javascript';
+    script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=showLocations';
+    document.body.appendChild(script);
+  }
+}
 
 // managing multi-drilldown icon display and control
 
