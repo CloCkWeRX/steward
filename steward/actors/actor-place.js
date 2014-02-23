@@ -411,6 +411,8 @@ Place.prototype.getWoeID = function(self, tries) {
     setTimeout(function() { self.getWoeID(self, tries++); }, 5 * 60 * 1000);
   };
 
+  if ((!place1.info.location) || !util.isArray(place1.info.location) || (place1.info.location.length < 2)) return;
+
   if (!!tries) {
     if (!!self.info.woeid) return;
   } else {
@@ -454,19 +456,21 @@ Place.prototype.getWeather = function(self) {
       if (diff > 0) {
         if (!!self.weatherID) clearInterval(self.weatherID);
         setTimeout(function() {
+          if (!!self.weatherID) return logger.warning('place/1', { event: 'getWeather', diagnostic: 'previously reset' });
+
           logger.warning('place/1', { event: 'getWeather', diagnostic: 'reset to every 75 minutes' });
-          if (!!self.weatherID) return;
           self.weatherID = setInterval(function() { self.getWeather(self); }, 75 * 60 * 1000);
           self.getWeather(self);
         }, diff + (5 * 60 * 1000));
-        logger.warning('place/1', { event: 'getWeather', diagnostic: 'check in ' + ((diff / 1000) + 5 * 60) + ' seconds' });
+        logger.warning('place/1', { event      : 'getWeather'
+                                  , diagnostic : 'check in ' + ((diff / 1000) + 5 * 60).toFixed(3) + ' seconds' });
       }
 
       atmosphere = response.query.results.channel.atmosphere;
       wind = response.query.results.channel.wind;
       current = response.query.results.channel.item.condition;
       self.info.conditions = { code        : current.code
-                             , text        : current.text
+                             , text        : current.text.toLowerCase()
                              , temperature : current.temp
                              , humidity    : atmosphere.humidity
                              , pressure    : atmosphere.pressure
@@ -479,7 +483,7 @@ Place.prototype.getWeather = function(self) {
       forecasts = response.query.results.channel.item.forecast;
       for (i = 0; i < forecasts.length; i++) {
         self.info.forecasts.push({ code            : forecasts[i].code
-                                 , text            : forecasts[i].text
+                                 , text            : forecasts[i].text.toLowerCase()
                                  , highTemperature : forecasts[i].high
                                  , lowTemperature  : forecasts[i].low
                                  , nextSample      : new Date(forecasts[i].date)
