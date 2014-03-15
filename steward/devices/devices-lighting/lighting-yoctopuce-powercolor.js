@@ -1,7 +1,6 @@
 // Yocto-PowerColor: http://www.yoctopuce.com/EN/products/usb-actuators/yocto-powercolor
 
-var tinycolor   = require('tinycolor2')
-  , util        = require('util')
+var util        = require('util')
   , yapi        = require('yoctolib')
   , devices     = require('./../../core/device')
   , steward     = require('./../../core/steward')
@@ -86,11 +85,12 @@ PowerColor.prototype.perform = function(self, taskID, perform, parameter) {
     if (state.color.model === 'hue') {
       if (!state.brightness) return false;
 
-      state.color.model = 'rgb';
-      state.color.rgb = tinycolor({ h : state.color.hue.hue
-                                  , s : state.color.hue.saturation
-                                  , l : state.brightness
-                                  }).toRgb();
+      state.color = { model       : 'rgb'
+                    , rgb         : lighting.hsl2rgb({ hue        : state.color.hue.hue
+                                                     , saturation : state.color.hue.saturation
+                                                     , brightness : state.brightness
+                                                     })
+                    };
     } else if ((state.color.model !== 'rgb') || !lighting.validRGB(state.color.rgb)) return false;
 
     if ((state.color.rgb.r === 0) && (state.color.rgb.g === 0) && (state.color.rgb.b === 0)) state.on = false;
@@ -134,8 +134,9 @@ var validate_perform = function(perform, parameter) {
   if (!!color) {
     switch (color.model) {
         case 'hue':
-          if (!lighting.validHue(color.hue)) result.invalid.push('color.hue');
-          if (!lighting.validSaturation(color.saturation)) result.invalid.push('color.saturation');
+          if (!color.hue) { result.requires.push('color.hue'); break; }
+          if (!lighting.validHue(color.hue.hue)) result.invalid.push('color.hue.hue');
+          if (!lighting.validSaturation(color.hue.saturation)) result.invalid.push('color.hue.saturation');
           if (!params.brightness) result.requires.push('brightness');
           break;
 

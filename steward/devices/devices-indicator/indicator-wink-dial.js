@@ -6,6 +6,7 @@ var util        = require('util')
   , utility     = require('./../../core/utility')
   , broker      = utility.broker
   , indicator   = require('./../device-indicator')
+  , places      = require('./../../actors/actor-place')
   ;
 
 
@@ -69,19 +70,49 @@ Gauge.prototype.update = function(self, params) {
 };
 
 Gauge.prototype.egress = function(self) {
-  var label, value;
+  var metricP, parts, property, value;
 
   if (!self.gateway.wink) return;
 
-  label = self.info.property.split('.');
-  label = label[label.length - 1];
   if (self.info.property.indexOf('.[') !== -1) {
     value = devices.expand(self.info.property, self.info.actor);
     if (!value) return;
   } else {
     value = devices.expand('.[' + self.info.actor + '.' + self.info.property + '].');
     if (!value) return;
-    if ((label.length + 1 + value.length) <= 8) value = label + ' ' + value;
+
+    parts = self.info.property.split('.');
+    property = parts[parts.length - 1];
+    if (places.place1.info.displayUnits === 'customary') value = places.customary(property, value);
+
+    if (!isNaN(value)) {
+      metricP = places.place1.info.displayUnits === 'metric';
+
+      value += { batteryLevel    : '%'
+               , accuracy        : metricP ? 'M'   : 'FT'
+               , co              : 'PPM'
+               , co2             : 'PPM'
+               , distance        : metricP ? 'KM'  : 'MI'
+               , extTemperature  : metricP ? 'C'   : 'F'
+               , goalTemperature : metricP ? 'C'   : 'F'
+               , heading         : metricP ? 'C'   : 'F'
+               , humidity        : '%'
+               , intTemperature  : metricP ? 'C'   : 'F'
+               , light           : 'LM'
+               , moisture        : 'MB'
+               , no              : 'PPM'
+               , no2             : 'PPM'
+               , noise           : 'DB'
+               , odometer        : metricP ? 'KM'  : 'MI'
+               , pressure        : 'MB'
+               , range           : metricP ? 'KM'  : ' MI'
+               , temperature     : metricP ? 'C'   : 'F'
+               , velocity        : metricP ? 'MPS' : 'MPH'
+               , visibility      : metricP ? 'KM'  : ' MI'
+               , voc             : 'PPM'
+               , windchill       : metricP ? 'C'   : 'F'
+              }[property] || '';
+    }
   }
 
   self.gateway.wink.setDial(self.params, { name                  : 'dial:' + self.deviceID
@@ -91,7 +122,12 @@ Gauge.prototype.egress = function(self) {
                                          , brightness            : 75
                                          , channel_configuration : { channel_id: 10 }
                                          }, function(err, params) {
-    if (!!err) return logger.error('device/' + self.deviceID, { event: 'setDial', diagnostic: err.message});
+    if (!!err) {
+      if (!self.errorP) logger.error('device/' + self.deviceID, { event: 'setDial', diagnostic: err.message});
+      self.errorP = true;
+      return;
+    }
+    delete(self.errorP);
 
     if (!!params) self.update(self, params);
   });
@@ -120,7 +156,10 @@ Gauge.prototype.perform = function(self, taskID, perform, parameter) {
 
   if (!!params.actor) self.info.actor = params.actor;
   if (!!params.property) self.info.property = params.property;
-  if ((!!params.actor) || (!!params.property)) self.setState({ actor: self.info.actor, property: self.info.property });
+  if ((!!params.actor) || (!!params.property)) {
+    self.setState({ actor: self.info.actor, property: self.info.property });
+    self.egress(self);
+  }
 
   return steward.performed(taskID);
 };

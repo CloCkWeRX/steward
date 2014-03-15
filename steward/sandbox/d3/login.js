@@ -352,7 +352,7 @@ var showSettings = function() {
 
   span = document.createElement('span')
   span.setAttribute('id', 'lan-instructions');
-  span.innerHTML = "&larr; " + "Require secure connection over LAN for clients (disable if you are using Arduino-based clients)";
+  span.innerHTML = "&larr; " + "By default, secure connections are required for LAN clients. Developer mode disables security checks for LAN-based clients (e.g., Arduino-based clients that lack encryption).";
   form.appendChild(span);
   
   
@@ -423,11 +423,11 @@ var showSettings = function() {
     
     option = document.createElement('option');
     option.setAttribute('value', 'on');
-    option.innerHTML = 'yes';
+    option.innerHTML = 'Strict';
     optgroup.appendChild(option);
     option = document.createElement('option');
     option.setAttribute('value', 'off');
-    option.innerHTML = 'no';
+    option.innerHTML = 'Developer';
     optgroup.appendChild(option);
     return select;
   }
@@ -684,9 +684,36 @@ var place_info   = { name        : 'Home'
                    };
 
 var bootable = { '':
-                 { text         : 'Choose a cloud service to enter its access credentials.'
+                 { text         : 'Choose a cloud service to enter its authentication credentials.'
                  , instructions : ''
                  , info         : {}
+                 }
+               , automatic      :
+                 { text         : 'If you have one or more Automatic devices, the steward can manage them for you.'
+                 , instructions : 'Enter your OAuth info. To get OAuth info, go to the Automatic website, login, click on "Sign up for API Access", and follow the directions.'
+                 , site         : 'http://www.automatic.com'
+                 , icon         : ''
+                 , name         : 'automatic'
+                 , actor        :'/device/gateway/automatic/cloud'
+                 , info         :
+                   { clientID   : ''
+                   , clientSecret : ''
+                   }
+                 , authorizeText : 'Click here to add a new vehicle for the steward to manage.'
+                 }
+               , cassandra      :
+                 { text         : 'If you have an account on a Cassandra server, the steward can automatically upload measurements.'
+                 , instructions : 'Enter a URL, e.g., "nosqls://cluster" and your username/password for the server'
+                 , site         : ''
+                 , icon         : ''
+                 , name         : 'cassandra'
+                 , actor        : '/device/indicator/cassandra/nosql'
+                 , info         :
+                   { url        : ''
+                   , username   : ''
+                   , passphrase : ''
+                   , crtPath    : ''
+                   }
                  }
                , dweetio        :
                  { text         : 'The steward can automatically upload measurements to dweet.io'
@@ -757,7 +784,8 @@ var bootable = { '':
                  , info         :
                    { url        : ''
                    , username   : ''
-                   , password   : ''
+                   , passphrase : ''
+                   , crtPath    : ''
                    }
                  }
                , nest           :
@@ -823,7 +851,7 @@ var bootable = { '':
                  , instructions : 'Enter your OAuth info, along with your Wink email and password. To get OAuth info, send an email to questions@quirkyinc.com.'
                  , site         : 'http://www.quirky.com'
                  , icon         : ''
-                 , name         : 'netatmo'
+                 , name         : 'quirky'
                  , actor        :'/device/gateway/wink/cloud'
                  , info         :
                    { clientID   : ''

@@ -127,13 +127,13 @@ DweetIO.prototype.update = function(self, deviceID, point) {
   self.dweetio.dweet_for(self.info.thing, point, self.info.key || null, function(err, dweet) {
       /* jshint unused: false */
 
-      if (!!err) return logger.error('device/' + self.deviceID, { event: 'dweet_for', diagnostic: err.message });
+      if (!!err) return logger.error('device/' + self.deviceID, { event: 'dweet_for', diagnostic: err.message || err });
   });
 };
 
 
 DweetIO.prototype.perform = function(self, taskID, perform, parameter) {
-  var params;
+  var params, updateP;
 
   try { params = JSON.parse(parameter); } catch(ex) { params = {}; }
 
@@ -141,16 +141,22 @@ DweetIO.prototype.perform = function(self, taskID, perform, parameter) {
 
   if (!!params.name) self.setName(params.name);
 
-  if (!!params.key) self.info.key = params.key;
-
+  updateP = false;
+  if (!!params.key) {
+    updateP = true;
+    self.info.key = params.key;
+  }
   if ((!!params.measurements) && (util.isArray(params.measurements))) {
+    updateP = true;
     self.info.measurements = params.measurements;
     delete(self.measurements);
   }
   if ((!!params.sensors) && (util.isArray(params.sensors))) {
+    updateP = true;
     self.info.sensors = params.sensors;
     delete(self.sensors);
   }
+  if (updateP) self.setInfo();
 
   self.normalize(self);
   return steward.performed(taskID);

@@ -1,26 +1,183 @@
 ChangeLog
 =======
 
-## Release 1.5 "TBD" - TBD
+## Release 1.6 "Pecan Waffle" - TBD
 ## Commit - TBD
 
 ### Steward
+- properly latch event observations
+- APIs:
+    - all: more robustness
+    - groups: replace composite 'status' property with component 'type' and 'operator' properties
+- more device.expand robustness
+- refactor metric/customary handling
 
 ### TAAS (Things as a Service)
+- no changes
 
 ### TSRP (Thing Simple Reporting Protocol)
+- no changes
 
 ### Places
+- use replacement interface to YQL, and robustness
+- better diagnostics for invalid parameters
 
 ### Things
+- all:
+    - refactor geocaching code and additional robustness
+- mDNS and UPNP: no changes
+    - no changes
+- device/climate:
+    - samsung/control: NEW, thank you @CloCkWeRX
+- device/gateway
+    - flower-power/cloud: robustness
+    - yoctopuce/hub: determine measured property based on unit parsign
+- device/indicator:
+    - cassandra/nosql: NEW
+    - irtoy/infrared: moved to drivers-in-progress area
+    - wink/*:
+    - wink/gauge:
+        - use metric/customary setting
+        - supress multiple API connection errors
+    - wink/nimbus: supress multiple API connection errors
+- device/lighting:
+    - all: color model refactoring and robustness
+    - heroic-robotics/*: use node-pixelpusher version 0.1.1
+    - LIFX/bulb: NEW, thank you @RussNelson
+- device/media:
+    - camera/axis: moved to drivers-in-progress area
+- device/motive:
+    - automatic/vehicle: interpret polyline routes
+    - crazyflie/3d: moved to drivers-in-progress area
+    - irobot/floor: moved to drivers-in-progress area
+    - lockitron/lock: add 'error' status, if operations fail
+- device/presence:
+    - no changes
+- device/sensor:
+    - voc now a measured property
+    - fix race-condition when reporting multiple measurements "simultaneously"
+    - move co2/light/voc sensors from /device/climate
+    - nest/smoke: report measurements properly
+    - wink/spotter: supress multiple API connection errors
+- device/switch:
+    - wemo/onoff: do not reply on subscription to refresh
+    - wink/strip:
+        - typo in property name (was 'outlets', now 'plugs')
+	- supress multiple API connection errors
 
 ### HTML5/D3 client
+- no changes
 
 ### User management client (client.html)
+- no changes
 
 ### Developer clients
+- console.html:
+    - when displaying entity names, append ID (if different)
+    - unlocked doors now reported as orange, not green
 
 ### Utilities
+- no changes
+
+## Release 1.5 "Ground Hog" - March 1, 2014
+## Commit - ddc6a500d20b6065c6e5b19611afb224878e4c66
+
+### Steward
+- experimental bootstrap-mac.sh script created
+- API
+    - add videlicet property (viz.) when reporting a duplicate
+    - add bullet-proofing to group membership when modifying a group
+    - tighten text in oneshot
+- Discovery
+    - ignore VirtualBox interfaces, thanks @alexking
+    - upgrade to latest arp-a module
+- Security
+    - more extensive generation of self-signed certificates
+    - numerous small fixes to access control
+
+### TAAS (Things as a Service)
+- no changes
+
+### TSRP (Thing Simple Reporting Protocol)
+- no changes
+
+### Places
+- add current and forecast weather
+
+### Things
+- all: make "wake" a generic device task (if IP address defined for device instance)
+    - if argument is empty to device.expand (the routine that interprets '.[ ... ].'), it also returns null
+    - invoke device.expand in the lower-api, not the upper-api (to avoid JSON mangling)
+    - setState() on updates was broken, not any more
+- mDNS and UPNP:
+    - finalize handling of deviceType information
+- device/climate:
+    - normalize for more code re-use
+    - ecobee/control: fix misnamed property ('apikey' v. 'appKey')
+    - flower-power/sensor:
+        - upgrade to latest node-flower-power-cloud module
+        - fix typo ('soil_mosture' v. 'soil_moisture')
+    - samsung/control: more preparation for release
+- device/gateway
+    - all: child device safety checks to avoid spurious crashes
+    - nest/cloud: temporarily scan intently on arp traffic
+    - reelyactive/hub: attempt to avoid creating bogus reels
+- device/indicator:
+    - deweetio/sensor: NEW (complete)
+    - irtoy/ifrared: disabled until completion
+    - mqtt/text:
+        - was text/mqtt
+        - subscribe to first term of topic + '/#'
+    - nma/text: NEW (complete), thanks @torkelsson
+    - wink/dial: typo ('spit' v. 'split')
+    - xively/sensor: invoke setInfo() when appropriate
+- device/lighting:
+    - tcpi/bulb:
+        - remove heuristic trying to distinguish between bulbs and downlights, it's not deterministic
+        - better device naming
+        - upgrade to latest node-greenwave-gop module
+    - template: more examples
+- device/media:
+    - normalize for more code re-use
+    - chromecast/video: upgrade to latest eureka-dongle module
+- device/motive:
+    - automatic/vehicle: NEW (mostly complete)
+    - lockitron/lock: NEW (complete)
+    - tesla/model-s:
+        - ignore HTTP response code 408 from server (they are somewhat plentious)
+        - upgrade to latest teslams module
+        - normalize for more code re-use
+    - irobot/floor: disabled until completion
+- device/presence:
+    - ble/fob: add Chipolo
+    - owntracks/mobile:
+        - was mqttitude/mobile
+        - ignore ZERO_MATCHES error on geocode
+- device/switch:
+    - wink/onoff: add missing on/off performers
+
+### HTML5/D3 client
+- bootstrap screen
+- do not allow long device names to scroll past name field
+- fixes for 'metric' display
+- support 'container' devices (e.g., those that contain plugs or gauges, etc.) with "double drill-down"
+- fixes for cursor focus
+- various fixes for displaying presence and sensor information
+- display map for presence and motive locations
+- display current/forecast conditions
+- display devices under review
+
+### User management client (client.html)
+- prepare allow 'master' role to see QRcodes for clients
+- add 'back' link
+
+### Developer clients
+- An [iOS library](https://github.com/TheThingSystem/steward-ios-library) to interface with the Things-as-a-service, client-side
+- A [node.js module](https://github.com/TheThingSystem/node-thing-client) to interface with TheThingSystem, as a thing
+- A [node.js module](https://github.com/TheThingSystem/node-taas-client) to interface with the Things-as-a-service, client-side
+ 
+### Utilities
+- no changes
 
 ## Release 1.4 "Resolutions" - January 24, 2014
 ## Commit - 9ca2c07b2d7b8e470b5cfe94d697449b5579af8f

@@ -87,10 +87,12 @@ Cloud.prototype.scan = function(self) {
         sensors[plant.sensor_serial].samples = plant.samples;
       }
       if (!plant.status) plant.status = {};
-      if (!plant.status.soil_mosture) plant.status.soil_mosture = {};
+      if (!plant.status.soil_moisture) plant.status.soil_moisture = {};
       if (!plant.status.fertilizer) plant.status.fertilizer = {};
-      if (!plant.status.air_temperature) plant.status.air_temperature = { instruction_key: 'temperature_good' };
-      if (!plant.status.light) plant.status.light = { instruction_key: 'light_good' };
+      if (!plant.status.air_temperature) plant.status.air_temperature = {};
+      if (!plant.status.air_temperature.instruction_key) plant.status.air_temperature.instruction_key = 'temperature_good';
+      if (!plant.status.light) plant.status.light = {};
+      if (!plant.status.light.instruction_key) plant.status.light.instruction_key = 'light_good';
 
       params = { placement       : plant.location_name
                , lastSample      : new Date(plant.last_sample_utc).getTime()
@@ -103,7 +105,7 @@ Cloud.prototype.scan = function(self) {
       udn = 'flower-power:plant:' + k;
       if (!!devices.devices[udn]) {
         sensor = devices.devices[udn].device;
-        sensor.update(sensor, params);
+        if (!!sensor) sensor.update(sensor, params);
         continue;
       }
 
@@ -150,7 +152,7 @@ Cloud.prototype.scan = function(self) {
       udn = 'flower-power:sensor:' + k;
       if (!!devices.devices[udn]) {
         sensor = devices.devices[udn].device;
-        sensor.update(sensor, params);
+        if (!!sensor) sensor.update(sensor, params);
         continue;
       }
 

@@ -40,7 +40,6 @@ var create = function(logger, ws, api, message, tag) {
   v = actor.$validate.create(message.info);
   if ((v.invalid.length > 0) || (v.requires.length > 0))    return error(false, 'invalid parameters ' + stringify(v));
 
-
   info = clone(message.info);
   info.deviceType = message.whatami;
   info.id = message.whatami + '.' + uuid;
@@ -51,7 +50,7 @@ var create = function(logger, ws, api, message, tag) {
 
     try { ws.send(JSON.stringify(results)); } catch(ex) { console.log(ex); }
 
-    if (err)                                                return error(false, err.message);
+    if (!!err)                                              return error(false, err.message);
     if (!deviceID)                                          return error(false, 'duplicate uuid',
                                                                          'device/' + devices.devices[info.id].device.deviceID);
 

@@ -420,10 +420,11 @@ Place.prototype.getWoeID = function(self, tries) {
     tries = 1;
   }
 
-  new yql.exec('SELECT * FROM geo.placefinder WHERE (text = @text) AND (gflags = "R")', function (response) {
+  new yql.exec2('SELECT * FROM geo.placefinder WHERE (text = @text) AND (gflags = "R")',
+                { text: self.info.location[0] + ',' + self.info.location[1] }, {}, function (err, response) {
     var woeid;
 
-    if (!!response.error) return retry({ diagnostic: response.error.description });
+    if (!!err) return retry({ diagnostic: err.message });
 
     try {
       woeid = parseInt(response.query.results.Result.woeid, 10);
@@ -439,16 +440,17 @@ Place.prototype.getWoeID = function(self, tries) {
     if (!!self.weatherID) clearInterval(self.weatherID);
     self.weatherID = setInterval(function() { self.getWeather(self); }, 30 * 60 * 1000);
     self.getWeather(self);
-  }, { text: self.info.location[0] + ',' + self.info.location[1] });
+  });
 };
 
 Place.prototype.getWeather = function(self) {
   if (!self.info.woeid) return;
 
-  new yql.exec('SELECT * FROM weather.forecast WHERE (woeid = @woeid) AND (u = "c")', function (response) {
-    var atmosphere, current, diff, forecasts, i, pubdate, wind;
+  new yql.exec2('SELECT * FROM weather.forecast WHERE (woeid = @woeid) AND (u = "c")', { woeid: self.info.woeid }, {},
+  function (err, response) {
+    var a, atmosphere, current, diff, forecasts, i, pubdate, wind;
 
-    if (!!response.error) return logger.error('place/1', { event: 'getWeather', diagnostic: response.error.description });
+    if (!!err) return logger.error('place/1', { event: 'getWeather', diagnostic: err.message });
 
     try {
       pubdate = new Date(response.query.results.channel.item.pubDate);
@@ -467,8 +469,11 @@ Place.prototype.getWeather = function(self) {
       }
 
       atmosphere = response.query.results.channel.atmosphere;
+      for (a in atmosphere) if ((atmosphere.hasOwnProperty(a)) && (atmosphere[a].length === 0)) delete(atmosphere[a]);
       wind = response.query.results.channel.wind;
+      if (wind.chill.length === 0) delete(wind.chill);
       current = response.query.results.channel.item.condition;
+      if (current.temp.length === 0) delete(current.temp);
       self.info.conditions = { code        : current.code
                              , text        : current.text.toLowerCase()
                              , temperature : current.temp
@@ -476,7 +481,7 @@ Place.prototype.getWeather = function(self) {
                              , pressure    : atmosphere.pressure
                              , windchill   : wind.chill
                              , visibility  : atmosphere.visibility
-                             , lastSample  : new Date(current.date)
+                             , lastSample  : new Date(current.date).getTime()
                              };
 
       self.info.forecasts = [];
@@ -486,13 +491,13 @@ Place.prototype.getWeather = function(self) {
                                  , text            : forecasts[i].text.toLowerCase()
                                  , highTemperature : forecasts[i].high
                                  , lowTemperature  : forecasts[i].low
-                                 , nextSample      : new Date(forecasts[i].date)
+                                 , nextSample      : new Date(forecasts[i].date).getTime()
                                  });
       }
     } catch(ex) {
       logger.error('place/1', { event: 'getWeather', diagnostic: ex.message });
     }
-  }, { woeid: self.info.woeid });
+  });
 };
 
 var review = function() {
@@ -581,7 +586,7 @@ var validate_observe = function(observe, parameter) {
       }
       pair = nextSolarEvent(new Date(), params[1]);
       if (!util.isArray(pair)) {
-        result.invalid.push('parameter');
+        result.invalid.push('parameter ' + params[1] + ': ' + JSON.stringify(pair));
         break;
       }
       if (pair[1] === 0) params[0] = 'start';
@@ -667,6 +672,31 @@ exports.name2place = function(name) {
   if ((!!name) && (place1.name.toLowerCase() === name.toLowerCase())) return place1;
 
   return null;
+};
+
+exports.customary = function(property, value) {
+  if (place1.info.displayUnits !== 'customary') return value;
+
+  return {
+// celsius -> fahrenheit
+           extTemperature  : Math.round(((value * 9) / 5) + 32)
+         , goalTemperature : Math.round(((value * 9) / 5) + 32)
+         , intTemperature  : Math.round(((value * 9) / 5) + 32)
+         , temperature     : Math.round(((value * 9) / 5) + 32)
+         , windchill       : Math.round(((value * 9) / 5) + 32)
+
+// meters -> feet
+         , accuracy        : Math.round(value * 3.28084)
+
+// kilometers -> miles
+         , distance        : Math.round(value * 0.621371)
+         , odometer        : Math.round(value * 0.621371)
+         , range           : Math.round(value * 0.621371)
+         , visibility      : Math.round(value * 0.621371)
+
+// meters/second -> miles/hour
+         , velocity        : Math.round(value * 2.23694)
+         }[property] || value;
 };
 
 
