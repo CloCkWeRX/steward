@@ -4,7 +4,7 @@ var actors           = {}
   , tags             = {}
   , containers       = {}
   , multiple_arcs    = []
-  , lastUpdated
+  , lastUpdated      = []
   , lastIconTrayPage = 1
   , lastStageScroll  = 0
   , firstLoad        = true
@@ -95,6 +95,15 @@ var home = function(state) {
   img.setAttribute('onclick', 'javascript:showSettings()');
   chart.appendChild(img);
 
+if (true) {
+  img = document.createElement('img');
+  img.setAttribute('id', 'to-voice');
+  img.setAttribute('src', 'popovers/assets/microphone.svg');
+  img.setAttribute('title', 'To voice control settings...');
+  img.setAttribute('onclick', 'javascript:showVoiceSettings()');
+  chart.appendChild(img);
+}
+  
   chart = document.getElementById('chart');
 
   div = document.createElement('div');
@@ -281,7 +290,7 @@ if (false) {
   self.onUpdate = function(updates) {
     var actorID, update, refresh = false;
     lastUpdated = [];
-    
+    if (!document.getElementById('stage')) return;
     for (var i = 0; i < updates.length; i++) {
       update = updates[i];
 
@@ -295,7 +304,7 @@ if (false) {
       
       }
       if (/\/place/.test(update.whatami)) {
-        lastUpdated.push(update.updated);
+        if (!!lastUpdated && !!update.updated) lastUpdated.push(update.updated);
         if (document.getElementById("wxicon")) {
           document.getElementById("wxicon").src = weather_icon(update.info.conditions.code, update.info.solar);
         }
@@ -308,7 +317,7 @@ if (false) {
       } else {
         refresh = true;
       }
-      lastUpdated.push(update.updated);
+      if (!!lastUpdated && !!update.updated) lastUpdated.push(update.updated);
     }
     lastUpdated = lastUpdated.sort(function(a, b) {return b - a;})[0];
     if (refresh) refreshActors(1);
@@ -348,7 +357,7 @@ var onUpdate_drilldown = function(updates) {
     update = updates[i];
     if (update.whatami.match(/\/device\/gateway\//)) continue;
     if (update.whatami.match(/\/place/)) {
-      lastUpdated.push(update.updated);
+      if (!!lastUpdated && !!update.updated) lastUpdated.push(update.updated);
       continue;
     }
     
@@ -2085,6 +2094,7 @@ function dayAhead(n) {
 	var days, now, result;
 	result = "";
 	
+        if (n-- === 1) return "today";
 	days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 	now = new Date();
 	result = (n === 1) ? "tomorrow" : days[((now.getDay() + n) % 7)];

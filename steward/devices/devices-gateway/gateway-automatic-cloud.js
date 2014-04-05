@@ -70,8 +70,10 @@ Cloud.prototype.login = function(self) {
     for (user in self.info.users) {
       if (!self.info.users.hasOwnProperty(user)) continue;
 
-      client = new AutomaticAPI.AutomaticAPI({ clientID: self.info.clientID, clientSecret: self.info.clientSecret})
-                  .on('error', bgerror).setState(self.info.users[user].state);
+      client = new AutomaticAPI.AutomaticAPI({ clientID     : self.info.clientID
+                                             , clientSecret : self.info.clientSecret
+                                             , logger       : utility.logfnx(logger, 'device/' + self.deviceID)
+                                             }).on('error', bgerror).setState(self.info.users[user].state);
       self.info.users[user].client = client;
       self.scan(self, client);
     }
@@ -80,7 +82,6 @@ Cloud.prototype.login = function(self) {
   }, function(request, response) {
     var body = '';
 
-console.log('>>> automatic request ' + request.method);
     if ((request.method !== 'GET') && (request.method !== 'POST')) {
       logger.info('device/' + self.deviceID, { event: 'request', method: request.method });
 
@@ -98,7 +99,6 @@ console.log('>>> automatic request ' + request.method);
     }).on('end', function() {
       var client, data, parts, requestURL, udn, vehicle;
 
-console.log('>>> automatic end: ' + body);
       var loser = function (message) {
         logger.error('device/' + self.deviceID, { event: 'request', diagnostic: message });
 
@@ -108,7 +108,6 @@ console.log('>>> automatic end: ' + body);
 
       if (request.method === 'POST') {
         try { data = JSON.parse(body); } catch(ex) { return loser(ex.message); }
-console.log(data);
         if (!data.type) return loser('webhook missing type parameter');
         if ((!data.user) || (!data.user.id)) return loser('webhook missing user.id');
         if (!self.info.users[data.user.id]) return loser('internal error (somewhere!)');
@@ -116,7 +115,6 @@ console.log(data);
         response.end();
 
         udn = 'automatic:' + data.vehicle.id;
-console.log('>>> automatic WEBHOOK udn='+udn+' exists='+(!!devices.devices[udn]));
         if (!devices.devices[udn]) return;
 
         vehicle = devices.devices[udn].device;
@@ -145,8 +143,10 @@ console.log('>>> automatic WEBHOOK udn='+udn+' exists='+(!!devices.devices[udn])
         return response.end();
       }
 
-      client = new AutomaticAPI.AutomaticAPI({ clientID: self.info.clientID, clientSecret: self.info.clientSecret})
-                  .on('error', bgerror);
+      client = new AutomaticAPI.AutomaticAPI({ clientID     : self.info.clientID
+                                             , clientSecret : self.info.clientSecret
+                                             , logger       : utility.logfnx(logger, 'device/' + self.deviceID)
+                                             }).on('error', bgerror);
 
       requestURL = client.authenticateURL(null, 'http://' + ipaddr + ':' + portno + '/');
       parts = url.parse(requestURL, true);
@@ -184,8 +184,6 @@ Cloud.prototype.scan = function(self, client) {
       status = 'ready';
 
       udn = 'automatic:' + entry.id;
-console.log('>>> /vehicles udn='+udn+' exists='+(!!devices.devices[udn]));
-console.log(entry);
       if (!!devices.devices[udn]) {
         vehicle = devices.devices[udn].device;
         if (!!vehicle) vehicle.update(vehicle, params);
@@ -228,8 +226,6 @@ console.log(entry);
         vehicles[entry.vehicle.id] = true;
 
         udn = 'automatic:' + entry.vehicle.id;
-console.log('>>> /trips udn='+udn+' ready='+(!!devices.devices[udn]));
-console.log(entry);
         if (!devices.devices[udn]) continue;
 
         vehicle = devices.devices[udn].device;

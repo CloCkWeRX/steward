@@ -24,10 +24,12 @@ var showLogin = function(changeLogin) {
 		wsx = new WebSocket(steward.protocol + '//' + steward.hostname + ':' + steward.port + '/manage');
 		
 		wsx.onopen = function(event) {
-			wsx.send(JSON.stringify({ path      : '/api/v1/user/list/'
-														 , requestID  : 400
-														 , options    : { depth: 'all' }
-			}));
+		    list_users(wsx, function(message) {
+					if (message.hasOwnProperty("result") && message.result.hasOwnProperty("users")) {
+						var isDeveloperMode = (message.result.steward.hasOwnProperty("developer") && message.result.steward.developer === true);
+						assembleLogin((Object.keys(message.result.users).length === 0), isDeveloperMode);
+					}
+				});
 		};
 		
 		wsx.onmessage = function(event) {
@@ -36,31 +38,20 @@ var showLogin = function(changeLogin) {
 			
 			if (message.hasOwnProperty("error")) notify(message.error.diagnostic);
 			
-			switch(requestID) {
-				case "400":
-					if (message.hasOwnProperty("result") && message.result.hasOwnProperty("status")) {
-						if (message.result.status !== "success") notify("The Steward is unable to inquire about existing accounts.");
-					}
-					if (message.hasOwnProperty("result") && message.result.hasOwnProperty("users")) {
-						var isDeveloperMode = (message.result.steward.hasOwnProperty("developer") && message.result.steward.developer === true);
-						assembleLogin((Object.keys(message.result.users).length === 0), isDeveloperMode);
-					}
-					break;
-				default:
-					break;
-			}
+			if ((!!callbacks[requestID]) && ((callbacks[requestID])(message))) delete(callbacks[requestID]);
 		};
 		
 		wsx.onclose = function(event) {};
 		
 		wsx.onerror = function(event) {
 			try {
-				ws.close();
-				console.log("Closed websocket");
+				wsx.close();
+				console.log("Closed wsx websocket");
 			} catch (ex) {}
 		};
 	}
   function assembleLogin(noUsers, isDeveloperMode) {
+    if (isDeveloperMode) loginInfo.clientID = '';
     if (noUsers && !isRemoteAccess()) {
 			div = d3.select("body")
 				.append("div")
@@ -76,16 +67,11 @@ var showLogin = function(changeLogin) {
 				.attr("src", "popovers/assets/create-account-only.svg")
 				.style("cursor", "pointer")
 				.on("click", goClientBootstrap);
-			if (ws2) {
+			if (ws2 || wsx) {
 				form.append("img")
 					.attr("src", "popovers/assets/developer-mode.svg")
 					.style("cursor", "pointer")
-					.on("click", hideLogin);
-			} else {
-				form.append("img")
-					.attr("src", "popovers/assets/developer-mode.svg")
-					.style("cursor", "pointer")
-					.attr("onclick", "javascript:setDeveloperMode(" + isDeveloperMode + ")");
+					.on("click", setDeveloperMode);
 			}
       form.append("p")
         .html("Developer mode disables authentication for local clients.");
@@ -129,7 +115,7 @@ var showLogin = function(changeLogin) {
 		
 			tr = table.append("tr");
 			td = tr.append("td")
-				.attr("colspan", "3")
+				.attr("colspan", "4")
 				.style("text-align", "center");
 			if (!isRemoteAccess()) {
 				td.append("img")
@@ -138,29 +124,36 @@ var showLogin = function(changeLogin) {
 						.on("click", goClientBootstrap);
 			}
 			if (changeLogin) {
-				if (!readOnlyAccess && !isRemoteAccess()) {
-					td.append("img")
-						.attr("src", "popovers/assets/read-only.svg")
-						.style("cursor", "pointer")
-						.on("click", function() { hideLogin(); switchToReadOnly(); });
+				if (isDeveloperMode && !isRemoteAccess()) {
+  				td.append("img")
+  					.attr("src", "popovers/assets/developer-mode.svg")
+  					.style("cursor", "pointer")
+  					.on("click", setDeveloperMode);
 				}
 				td.append("img")
 					.attr("src", "popovers/assets/cancel-login.svg")
 					.style("cursor", "pointer")
 					.on("click", hideLogin);
 			} else if (!isRemoteAccess()) {
-				td.append("img")
-					.attr("src", "popovers/assets/read-only.svg")
-					.style("cursor", "pointer")
-					.on("click", function() { hideLogin(); switchToReadOnly(); });
+			  if (isDeveloperMode) {
+  				td.append("img")
+  					.attr("src", "popovers/assets/developer-mode.svg")
+  					.style("cursor", "pointer")
+  					.on("click", setDeveloperMode);
+          } else {
+				  td.append("img")
+					  .attr("src", "popovers/assets/read-only.svg")
+					  .style("cursor", "pointer")
+					  .on("click", function() { hideLogin(); switchToReadOnly(); });
+			  }
 			}
 			td.append("img")
 					.attr("src", "popovers/assets/login.svg")
 					.style("cursor", "pointer")
-					.on("click", login);
+					.on("click", submitLogin);
 			tr = table.append("tr")
 				.append("td")
-				.attr("colspan", "3")
+				.attr("colspan", "4")
 				.style("text-align", "center")
 				.style("padding-bottom", "15px")
 				.attr("id", "loginStatus")
@@ -200,38 +193,39 @@ var showLogin = function(changeLogin) {
   }
 };
   
-function setDeveloperMode(isDeveloperMode) {
-	if (!isDeveloperMode) {
-	  wsx.send(JSON.stringify({ path      : '/api/v1/actor/perform/place'
-                            , perform   : 'set'
-                            , parameter : JSON.stringify({ strict: 'off' })
-	  }));
-	}
+function setDeveloperMode() {
+  if (!!place_info) {
+    place_info.strict = 'off';
+    savePlace();
+  }
 	hideLogin();
   var steward = { hostname : window.location.hostname
 				        , port     : window.location.port
 				        , protocol : (window.location.protocol.indexOf('https:') === 0) ? 'wss:' : 'ws:'
 				        , secure   : false
 				        };
+	if (!!loginInfo.clientID) loginInfo.clientID = '';
   go(steward);
 }
 
 var hideLogin = function() {
   d3.select("#login")
     .style("top", "120px")
-    .transition()
+    .transition().each("end", function() {
+		})
     .duration(600)
     .style("top", "-240px")
     .remove();
   if (document.getElementById('relogin')) document.getElementById('relogin').setAttribute('onclick', 'javascript:showLogin(true)');
-  if (wsx) {
-    wsx.close();
-    wsx = null;
-  }
 }
 
 var submitLogin = function(evt) {
-    if (evt.keyCode === 13) login();
+    if (!!evt.keyCode && evt.keyCode !== 13) return true;
+    if (!!place_info) {
+      place_info.strict = 'on';
+      savePlace();
+    }
+    login();
 }
 
 var showReauth = function() {
@@ -262,6 +256,8 @@ var showSettings = function() {
   var btn, chkbox, div, div2, form, i, img, lbl, option, radio, select, settings, span, txtbox;
   
   if (document.getElementById('settings')) return;
+  
+  if (document.getElementById('to-voice')) document.getElementById('to-voice').style.display = 'none';
   
   img = document.getElementById("to-config");
   img.disabled = true;
@@ -352,7 +348,7 @@ var showSettings = function() {
 
   span = document.createElement('span')
   span.setAttribute('id', 'lan-instructions');
-  span.innerHTML = "&larr; " + "By default, secure connections are required for LAN clients. Developer mode disables security checks for LAN-based clients (e.g., Arduino-based clients that lack encryption).";
+  span.innerHTML = "&larr; " + "By default, secure connections are required for LAN clients. Developer mode disables security checks for LAN-based clients.";
   form.appendChild(span);
   
   
@@ -481,6 +477,8 @@ var closeSettings = function(evt) {
   var img = document.getElementById("to-config");
   img.disabled = false;
   img.style.opacity = 1;
+
+  if (document.getElementById('to-voice')) document.getElementById('to-voice').style.display = 'block';
   
   return false;
 }
@@ -642,12 +640,7 @@ var fillPlaceFields = function() {
 }
 
 var savePlace = function(evt) {
-  var val = JSON.stringify({ path    : '/api/v1/actor/perform/place'
-                         , requestID : "3"
-                         , perform   : "set"
-                         , parameter : JSON.stringify(place_info) || ''
-                         });
-  wsSend(val);
+    perform_actors(ws2 || wsx, 'place', 'set', place_info, function() { });
 }
 
 var addCloud = function(evt) {
@@ -749,6 +742,18 @@ var bootable = { '':
                    , accessSecret : ''
                    , email      : ''
                    , passphrase : ''
+                   }
+                 }
+               , grovestreams   :
+                 { text         : 'If you have an GroveStreams account, the steward can automatically upload measurements.'
+                 , instructions : 'Go to https://grovestreams.com, create an account and create an organization for the steward'
+                 , site         : 'https://grovestreams.com'
+                 , icon         : ''
+                 , name         : 'grovestreams'
+                 , actor        : '/device/indicator/grovestreams/sensor'
+                 , info         :
+                   { apikey       : ''
+                   , organization : ''
                    }
                  }
                , koubachi       :
@@ -863,7 +868,7 @@ var bootable = { '':
                , xively         :
                  { text         : 'If you have an Xively (nee cosm) account, the steward can automatically upload measurements.'
                  , instructions : 'Go to https://xively.com/login, create an account, and get a device key (apikey) and feed.'
-                 , site         : 'https://xlively.com/login'
+                 , site         : 'https://xively.com/login'
                  , icon         : ''
                  , name         : 'xively'
                  , actor        : '/device/indicator/xively/sensor'

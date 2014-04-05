@@ -53,6 +53,7 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
          , device   : true
          , cloud    : true
          , none     : true }[message.role])                 return error(true,  'invalid role element');
+    if (exports.count() === 0) message.role = 'master';
 
     if (!message.clientName) message.clientName = '';
 
@@ -79,7 +80,7 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
   client = id2user(ws.clientInfo.userID);
   createP = ws.clientInfo.loopback
            || ((!!client) && (client.role === 'master'))
-           || ((!!user) ? (user.userID === ws.clientInfo.userID) : ws.clientInfo.subnet)
+           || ((!!user) ? (user.userID === ws.clientInfo.userID) : (exports.count() === 0))
            || (internalP && ws.clientInfo.local);
 
   if (!createP) {
@@ -182,27 +183,27 @@ var create2 = function(logger, ws, user, results, tag, uuid, clientName, clientC
     }
     exports.db.run('UPDATE clients SET clientAuthParams=$clientAuthParams WHERE clientID=$clientID',
                    { $clientID: clientID, $clientAuthParams: JSON.stringify(data.params) }, function(err) {
-      if (err) logger.error(tag, { event: 'UPDATE client.authParams for ' + clientID, diagnostic: err.message });
+      if (err) return logger.error(tag, { event: 'UPDATE client.authParams for ' + clientID, diagnostic: err.message });
+
+      results.result.client = clientID;
+      if (!internalP) {
+        results.result.authenticatorURL = data.google_auth_qr;
+        results.result.otpURL = data.url();
+      }
+      clients[uuid] = { clientID         : clientID
+                      , clientUID        : uuid
+                      , clientUserID     : user.userID
+                      , clientName       : clientName
+                      , clientComments   : clientComments
+                      , clientAuthAlg    : 'otpauth://totp'
+                      , clientAuthParams : data.params
+                      , clientAuthKey    : data.base32
+                      , clientLastLogin  : null
+                    };
+      user.clients.push(clientID);
+
+      try { ws.send(JSON.stringify(results)); } catch(ex) { console.log(ex); }
     });
-
-    results.result.client = clientID;
-    if (!internalP) {
-      results.result.authenticatorURL = data.google_auth_qr;
-      results.result.otpURL = data.url();
-    }
-    clients[uuid] = { clientID         : clientID
-                    , clientUID        : uuid
-                    , clientUserID     : user.userID
-                    , clientName       : clientName
-                    , clientComments   : clientComments
-                    , clientAuthAlg    : 'otpauth://totp'
-                    , clientAuthParams : data.params
-                    , clientAuthKey    : data.base32
-                    , clientLastLogin  : null
-                  };
-    user.clients.push(clientID);
-
-    try { ws.send(JSON.stringify(results)); } catch(ex) { console.log(ex); }
   });
 };
 
@@ -303,7 +304,7 @@ var authenticate = exports.authenticate = function(logger, ws, api, message, tag
     params.time = now[i];
     if (speakeasy.totp(params) === message.response.toString()) break;
   }
-  if (i >= now.length) results.error = { permanent: false, diagnostic: 'invalid clientID/response pair' };
+  if (i >= now.length) results.error = { permanent: false, diagnostic: 'invalid clientID/response pair (check your clock)' };
   else {
     results.result = proplist(null, user);
     results.result.client = proplist2(null, client, user);

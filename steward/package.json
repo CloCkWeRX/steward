@@ -1,15 +1,16 @@
-{ "name"                      : "node-steward"
+{ "name"                        : "node-steward"
   , "readmeFilename"            : "README.md"
-  , "version"                   : "0.0.1"
+  , "version"                   : "1.5.1"
   , "private"                   : true
   , "engines"                   :
     { "node"                    : ">=0.10.22"
     }
+  , "license"                   : "MIT"
   , "dependencies"              :
     { "MD5"                     : "1.0.3"
     , "aerogel"                 : "git://github.com/TheThingSystem/aerogel.git"
     , "airplay"                 : "git://github.com/TheThingSystem/node-airplay.git"
-    , "arp-a"                   : "0.2.2"
+    , "arp-a"                   : "0.3.0"
     , "async"                   : "0.2.9"
     , "axiscam"                 : "0.0.4"
     , "automatic-api"           : "0.9.3"
@@ -24,6 +25,7 @@
     , "flower-power-cloud"      : "0.2.0"
     , "geocoder"                : "0.1.0"
     , "greenwave-gop"           : "0.0.2"
+    , "grovestreams-api"        : "0.2.3"
     , "irobot"                  : "git://github.com/TheThingSystem/irobot.git"
     , "json-stringify-safe"     : "4.0.0"
     , "koubachi"                : "0.0.4"

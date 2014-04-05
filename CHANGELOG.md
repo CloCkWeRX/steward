@@ -1,16 +1,21 @@
-ChangeLog
-=======
+CHANGELOG
+=========
 
-## Release 1.6 "Pecan Waffle" - TBD
-## Commit - TBD
+## Release 1.6 "Pecan Waffle" - March 29, 2014
+## Commit - df14aeda4c4379fe1122845e24adeb7db6fb7f7e
 
 ### Steward
 - properly latch event observations
 - APIs:
     - all: more robustness
     - groups: replace composite 'status' property with component 'type' and 'operator' properties
+    - thing creation: remove race condition
+    - client login: indicate that clockskew may be a cause of failure "(check your clock)"
 - more device.expand robustness
 - refactor metric/customary handling
+- redirect port 80 traffic to correct http/https port
+- add secondary algorithm for generating UUID (in case ARP scan fails)
+- add support for db/configuration.json (experimental, not documented yet)
 
 ### TAAS (Things as a Service)
 - no changes
@@ -21,19 +26,24 @@ ChangeLog
 ### Places
 - use replacement interface to YQL, and robustness
 - better diagnostics for invalid parameters
+- default to metric for displayUnits
+- more accurate handling of forecast and current conditions
+- add identity (UUID) property
 
 ### Things
 - all:
     - refactor geocaching code and additional robustness
 - mDNS and UPNP: no changes
-    - no changes
 - device/climate:
+    - nest/control: robustness check when setting to home/away
     - samsung/control: NEW, thank you @CloCkWeRX
 - device/gateway
     - flower-power/cloud: robustness
-    - yoctopuce/hub: determine measured property based on unit parsign
+    - reelyactive/reel: supress phantom reelceivers and tags
+    - yoctopuce/hub: determine measured property based on unit parsing
 - device/indicator:
     - cassandra/nosql: NEW
+    - grovestreams/sensor: NEW
     - irtoy/infrared: moved to drivers-in-progress area
     - wink/*:
     - wink/gauge:
@@ -47,10 +57,14 @@ ChangeLog
 - device/media:
     - camera/axis: moved to drivers-in-progress area
 - device/motive:
-    - automatic/vehicle: interpret polyline routes
+    - automatic/vehicle:
+        - interpret polyline routes
+        - add logging hook
+        - remove debugging
     - crazyflie/3d: moved to drivers-in-progress area
     - irobot/floor: moved to drivers-in-progress area
     - lockitron/lock: add 'error' status, if operations fail
+    - tesla/model-s: limit API calls to no more than six per minute
 - device/presence:
     - no changes
 - device/sensor:
@@ -66,7 +80,7 @@ ChangeLog
 	- supress multiple API connection errors
 
 ### HTML5/D3 client
-- no changes
+- more accurate handling of forecast and current conditions
 
 ### User management client (client.html)
 - no changes
@@ -175,7 +189,7 @@ ChangeLog
 - An [iOS library](https://github.com/TheThingSystem/steward-ios-library) to interface with the Things-as-a-service, client-side
 - A [node.js module](https://github.com/TheThingSystem/node-thing-client) to interface with TheThingSystem, as a thing
 - A [node.js module](https://github.com/TheThingSystem/node-taas-client) to interface with the Things-as-a-service, client-side
- 
+
 ### Utilities
 - no changes
 

@@ -70,6 +70,8 @@ Lock.prototype.webhook = function(self, event, data) {
     outcome = activity.kind || activity.human_type;
 
     f = { error  : function() {
+                     var now;
+
                      if (outcome !== 'lock-offline') {
                        return logger.error('device/' + self.deviceID, { event: event, diagnostic: outcome });
                      }
@@ -80,6 +82,8 @@ Lock.prototype.webhook = function(self, event, data) {
                      self.changed(now);
                    }
         , notice : function() {
+                     var now;
+
                      if (outcome.indexOf('lock-updated-') !== 0) {
                        return logger.warning('device/' + self.deviceID, { event: event, data: data });
                      }

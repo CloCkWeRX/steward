@@ -180,6 +180,7 @@ var Place = exports.Place = function(info) {
     delete(info.name);
     delete(info.ipaddrs);
     delete(info.woeid);
+    if (!!steward.uuid) info.identity = steward.uuid;
     if (!!server.vous) {
       info.remote = server.vous;
 
@@ -325,7 +326,7 @@ Place.prototype.perform = function(self, taskID, perform, parameter) {
       geocoder.geocode(place1.info.physical, function(err, result) {
         var components, geometry, i;
 
-        if (!!err) return logger.warning('place/1', { event      : 'reverseGeocode'
+        if (!!err) return logger.warning('place/1', { event      : 'geocode'
                                                     , location   : place1.info.location
                                                     , diagnostic : result.status });
 
@@ -334,6 +335,7 @@ Place.prototype.perform = function(self, taskID, perform, parameter) {
         self.getWoeID(self);
         if (!!params.displayUnits) return;
 
+        place1.info.displayUnits = 'metric';
         components = result.results[0].address_components;
         for (i = 0; i < components.length; i++) if (components[i].types.indexOf('country') !== -1) {
           place1.info.displayUnits = components[i].long_name === 'United States' ? 'customary' : 'metric';
@@ -448,22 +450,26 @@ Place.prototype.getWeather = function(self) {
 
   new yql.exec2('SELECT * FROM weather.forecast WHERE (woeid = @woeid) AND (u = "c")', { woeid: self.info.woeid }, {},
   function (err, response) {
-    var a, atmosphere, current, diff, forecasts, i, pubdate, wind;
+    var a, atmosphere, current, diff, forecasts, i, now, pubdate, wind;
 
     if (!!err) return logger.error('place/1', { event: 'getWeather', diagnostic: err.message });
 
     try {
       pubdate = new Date(response.query.results.channel.item.pubDate);
-      diff = pubdate.getTime() + (75 * 60 * 1000) - new Date().getTime();
+      now = new Date().getTime();
+      diff = pubdate.getTime() + (75 * 60 * 1000) - now;
+
+      var retry = function() {
+        if (!!self.weatherID) return logger.warning('place/1', { event: 'getWeather', diagnostic: 'previously reset' });
+
+        logger.warning('place/1', { event: 'getWeather', diagnostic: 'reset to every 75 minutes' });
+        self.weatherID = setInterval(function() { self.getWeather(self); }, 75 * 60 * 1000);
+        self.getWeather(self);
+      };
+
       if (diff > 0) {
         if (!!self.weatherID) clearInterval(self.weatherID);
-        setTimeout(function() {
-          if (!!self.weatherID) return logger.warning('place/1', { event: 'getWeather', diagnostic: 'previously reset' });
-
-          logger.warning('place/1', { event: 'getWeather', diagnostic: 'reset to every 75 minutes' });
-          self.weatherID = setInterval(function() { self.getWeather(self); }, 75 * 60 * 1000);
-          self.getWeather(self);
-        }, diff + (5 * 60 * 1000));
+        setTimeout(retry, diff + (5 * 60 * 1000));
         logger.warning('place/1', { event      : 'getWeather'
                                   , diagnostic : 'check in ' + ((diff / 1000) + 5 * 60).toFixed(3) + ' seconds' });
       }
@@ -719,6 +725,7 @@ exports.start = function() {
                                    , displayUnits: [ 'customary', 'metric' ]
                                    , physical    : true
                                    , location    : 'coordinates'
+                                   , identity    : true
                                    , remote      : true
                                    , review      : []
                                    , conditions  : { code        : true
