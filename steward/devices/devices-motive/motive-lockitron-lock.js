@@ -70,26 +70,24 @@ Lock.prototype.webhook = function(self, event, data) {
     outcome = activity.kind || activity.human_type;
 
     f = { error  : function() {
-                     var now;
+                     var now = new Date();
 
                      if (outcome !== 'lock-offline') {
                        return logger.error('device/' + self.deviceID, { event: event, diagnostic: outcome });
                      }
 
                      self.status = 'absent';
-                     now = new Date();
                      self.info.lastSample = now.getTime();
                      self.changed(now);
                    }
         , notice : function() {
-                     var now;
+                     var now = new Date();
 
                      if (outcome.indexOf('lock-updated-') !== 0) {
                        return logger.warning('device/' + self.deviceID, { event: event, data: data });
                      }
 
                      self.status = outcome === 'lock-updated-locked' ? 'locked' : 'unlocked';
-                     now = new Date();
                      self.info.lastSample = now.getTime();
                      self.changed(now);
                    }
