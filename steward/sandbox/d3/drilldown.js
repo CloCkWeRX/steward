@@ -713,12 +713,9 @@ var drawArcs = function(arcs) {
   function arcLabelHTML(labelText) {
     var result = "";
     switch (labelText.toLowerCase()) {
+      case "distance":
       case "location":
-        if (currDevice.device.info.hasOwnProperty("locations") && currDevice.device.info.locations.length > 0) {
-          result += "<span class='clickable-text' onclick='javascript:showLocations(event)'>" + labelText + "</span>";
-        } else {
-          result += labelText;
-        }
+        result += "<span class='clickable-text' onclick='javascript:showLocation(event)'>" + labelText + "</span>";
         break;
       default:
         result += labelText;
@@ -738,8 +735,9 @@ var single_device_drilldown = function(state, arcs, instructions) {
 };
 
 var single_device_arcs = function(device) {
-  var a0, a1, arcs, brightness, color, delta, level, now, prop, v, v2;
+  var a0, a1, arcs, brightness, color, delta, metric, level, now, prop, v, v2;
 
+  metric = place_info.displayUnits === 'metric';
   arcs = [];
 
   now = new Date().getTime();
@@ -901,7 +899,7 @@ var single_device_arcs = function(device) {
       case 'location':
         if ((!!place.info) && (!!place.info.location) && (!!place.info.location[1])) {
           dist = getDistanceFromLatLonInKm(v[0], v[1], place.info.location[0], place.info.location[1]);
-          cooked = (dist >= 1) ? (dist.toFixed(0) + ' km' + ' / ' + (dist / 1.60934).toFixed(0) + ' mi')
+          cooked = (dist >= 1) ? (metric) ? (dist.toFixed(0) + ' km' ) : ((dist / 1.60934).toFixed(0) + ' mi')
                                : (dist > 0) && (device.info.velocity > 0) ? 'nearby'
                                : place.name;
           if ((dist >= 1) && (!!device.info.physical)) {
@@ -926,7 +924,7 @@ var single_device_arcs = function(device) {
         arcs.splice(a0+1,0, { name   : prop
                            , raw    : v2
                            , label  : 'ACCURACY'
-                           , cooked : '&plusmn; ' + v2 + 'm / ' + Math.round(v * 3.28084) + 'ft'
+                           , cooked : (metric) ? '&plusmn; ' + v2 + 'm' : Math.round(v * 3.28084) + 'ft'
                            , value  : clip2bars(v2, 0, 100)
                            , index  : a1 - 0.10
                            });
@@ -1012,8 +1010,9 @@ var single_climate_instructions = function(device) {
 
 
 var climate_device_arcs = function(device) {
-  var arcs, i, now, prop, props, v;
+  var arcs, i, metric, now, prop, props, v;
 
+  metric = place_info.displayUnits === 'metric';
   arcs = [];
 
   if (!device.info.lastSample) device.info.lastSample = device.updated;
@@ -1051,7 +1050,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(1, 0, { name   : prop
                           , raw    : v
                           , label  : 'TEMPERATURE'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, v >= 18 ? 18 : 0, v <= 28 ? 28 : 100)
                           , index  : 0.60
                           });
@@ -1083,7 +1082,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'GOAL'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, 18, 28)
                           , index  : 0.50
                           });
@@ -1302,7 +1301,7 @@ var climate_device_arcs = function(device) {
         }
         if ((!!place.info) && (!!place.info.location) && (!!place.info.location[1])) {
           dist = getDistanceFromLatLonInKm(v[0], v[1], place.info.location[0], place.info.location[1]);
-          cooked = (dist >= 1) ? (dist.toFixed(0) + ' km' + ' / ' + (dist / 1.60934).toFixed(0) + ' mi')
+          cooked = (dist >= 1) ? (metric) ? (dist.toFixed(0) + ' km') : ((dist / 1.60934).toFixed(0) + ' mi')
                                : (dist > 0) && (device.info.velocity > 0) ? 'nearby'
                                : place.name;
           if ((dist >= 1) && (!!device.info.physical)) {
@@ -1448,7 +1447,7 @@ var single_presence_instructions = function(device) {
 };
 
 var media_device_arcs = function(device) {
-  var arcs, prop, text, v;
+  var anchor, arcs, prop, text, v;
 
   arcs = [];
 
@@ -1470,6 +1469,11 @@ var media_device_arcs = function(device) {
     if ((!isNaN(v)) && typeof v === 'string') v = v * 1.0;
     switch (prop) {
       case 'track':
+        if (!!v.title && v.title.indexOf('http') === 0) {
+          anchor = document.createElement('a');
+          anchor.href = v.title;
+          v.title = decodeURIComponent(anchor.pathname.replace(/(^\/?)/,''))
+        }
         text = v.title || '';
         if ((text.length > 0) && (!!v.artist)) text += ' / ' + v.artist;
         if ((text.length > 0) && (!!v.album))  text += ' / ' + v.album;
@@ -1548,11 +1552,11 @@ var getTimeString = function(v) {
   v = Math.round(v / 1000);
 
   text = ('0' + (v % 60)).substr(-2);
-  v = Math.round(v / 60);
+  v = Math.floor(v / 60);
 
   if (v !== 0) {
     text = ('0' + (v % 60)).substr(-2) + ':' + text;
-    v = Math.round(v / 60);
+    v = Math.floor(v / 60);
   } else text = '00:' + text;
   if (v !== 0) text = ('0' + v).substr(-2) +':' + text;
 
@@ -1586,6 +1590,7 @@ var single_motive_instructions = function(device) {
 var motive_device_arcs = function(device) {
   var arcs, cooked, dist, i, prop, props, v;
 
+  metric = place_info.displayUnits === 'metric';
   arcs = [];
   props = sortprops(device.info, [ 'lastSample', 'location', 'velocity', 'heading', 'odometer', 'charger', 'intTemperature' ]);
 
@@ -1609,7 +1614,7 @@ var motive_device_arcs = function(device) {
       case 'location':
         if ((!!place.info) && (!!place.info.location) && (!!place.info.location[1])) {
           dist = getDistanceFromLatLonInKm(v[0], v[1], place.info.location[0], place.info.location[1]);
-          cooked = (dist >= 1) ? (dist.toFixed(0) + ' km' + ' / ' + (dist / 1.60934).toFixed(0) + ' mi')
+          cooked = (dist >= 1) ? (metric) ? (dist.toFixed(0) + ' km') : ((dist / 1.60934).toFixed(0) + ' mi')
                                : (dist > 0) && (device.info.velocity > 0) ? 'nearby'
                                : place.name;
           if ((dist >= 1) && (!!device.info.physical)) {
@@ -1633,7 +1638,7 @@ var motive_device_arcs = function(device) {
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'SPEED'
-                          , cooked : (v > 0) ? ((v / 1000).toFixed(0) + ' km/h' + ' / ' + (v * 2.23694).toFixed(0) + ' mph')
+                          , cooked : (v > 0) ? (metric) ? ((v * 3.6).toFixed(0) + ' km/h') : ((v * 2.23694).toFixed(0) + ' mph')
                                              : 'stationary'
                           , value  : clip2bars(v, 0, 50)
                           , index  : 0.50
@@ -1662,7 +1667,7 @@ var motive_device_arcs = function(device) {
         arcs.splice(4, 0, { name   : prop
                           , raw    : v
                           , label  : 'ODOMETER'
-                          , cooked : v.toFixed(0) + ' km' + ' / ' + (v / 1.60934).toFixed(0) + ' mi'
+                          , cooked : (metric) ? v.toFixed(0) + ' km' : (v / 1.60934).toFixed(0) + ' mi'
                           , value  : clip2bars(v % 20000, 0, 20000)
                           , index  : 0.30
                           });
@@ -1685,7 +1690,7 @@ var motive_device_arcs = function(device) {
         arcs.splice(6, 0, { name   : prop
                           , raw    : v
                           , label  : 'INTERIOR'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, 17, 32)
                           , index  : 0.10
                           });
@@ -1956,7 +1961,9 @@ var single_weather_drilldown = function(state) {
 };
 
 var weather_arcs = function(device) {
-  var arcs, codeValues, prop, v, v2;
+  var arcs, codeValues, metric, prop, v, v2;
+  
+  metric = place_info.displayUnits === 'metric';
   
   arcs = [];
   
@@ -1998,7 +2005,7 @@ var weather_arcs = function(device) {
         arcs.splice(1, 0, { name   : prop
                           , raw    : v
                           , label  : (prop === 'temperature') ? 'TEMPERATURE' : 'HIGH TEMP'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, v >= -30 ? -30 : 0, v <= 50 ? 50 : 100)
                           , index  : 0.60
                           });
@@ -2016,7 +2023,7 @@ var weather_arcs = function(device) {
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'LOW TEMP'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, v >= -30 ? -30 : 0, v <= 50 ? 50 : 100)
                           , index  : 0.50
                           });
@@ -2034,7 +2041,7 @@ var weather_arcs = function(device) {
         arcs.splice(4, 0, { name   : prop
                           , raw    : v
                           , label  : 'WIND CHILL'
-                          , cooked : v.toFixed(2) + '&deg;C' + ' / ' + ((v * 1.8) + 32).toFixed(2) + '&deg;F'
+                          , cooked : (metric) ? v.toFixed(2) + '&deg;C' : ((v * 1.8) + 32).toFixed(2) + '&deg;F'
                           , value  : clip2bars(v, v >= -30 ? -30 : 0, v <= 50 ? 50 : 100)
                           , index  : 0.30
                           });
@@ -2043,7 +2050,7 @@ var weather_arcs = function(device) {
         arcs.splice(5, 0, { name   : prop
                           , raw    : v
                           , label  : 'VISIBILITY'
-                          , cooked : v.toFixed(0) + ' km' + ' / ' + (v / 1.60934).toFixed(0) + ' mi'
+                          , cooked : (metric) ? v.toFixed(0) + ' km' : (v / 1.60934).toFixed(0) + ' mi'
                           , value  : clip2bars(v, 0, 50)
                           , index  : 0.20
                           });
@@ -2162,8 +2169,11 @@ var multiple_drilldown = function(name, members) {
   }
 };
 
-var showLocations = function(evt) {
-  var allLocs, count, i, image, j, lines, loc, locArray, locs, map, mapOptions, mapCanvas, marker, roadAtlassStyles, roadMapType, styledMapOptions;
+var showLocation = function(evt) {
+  var allLocs, count, hasLocations, i, image, j, lines, loc, locArray, locs, map, mapOptions, mapCanvas, marker, roadAtlassStyles, roadMapType, styledMapOptions;
+  
+  hasLocations = currDevice.device.info.hasOwnProperty('locations');
+  
   if (!document.getElementById('googleMapsAPI')) {
     loadScript();
   } else {
@@ -2181,7 +2191,7 @@ var showLocations = function(evt) {
 		div.setAttribute('id', 'closeme');
 		img = document.createElement('img');
 		img.setAttribute('src', 'popovers/assets/close.svg');
-		img.setAttribute('onclick', 'javascript:showLocations()');
+		img.setAttribute('onclick', 'javascript:showLocation()');
 		div.appendChild(img);
 		chart.appendChild(div);
     
@@ -2268,14 +2278,6 @@ var showLocations = function(evt) {
 		map.mapTypes.set('usroadatlas', roadMapType);
 		map.setMapTypeId('usroadatlas');
     
-    locs = [];
-    allLocs = currDevice.device.info.locations;
-    
-    for (i = 0; i < allLocs.length; i++) {
-      locArray = allLocs[i].split(',');
-      locs[i] = new google.maps.LatLng(parseFloat(locArray[0]), parseFloat(locArray[1]))
-    }
-    
     image = {
       url: 'popovers/assets/actors/t.svg'
     };
@@ -2285,37 +2287,47 @@ var showLocations = function(evt) {
       map: map
     });
     
-    lines = [];
-    function addLine(i, start, end) {
-      lines[i] = new google.maps.Polyline({
-        path: [start, end],
-        strokeColor: '#9b00c1',
-        strokeWeight: 4,
-        map: map
-      });
-      if (count === locs.length - 1) {
-        count = 0;
-        for (j = 0; j < lines.length; j++) {
-          lines[j].setMap(null);
+    if (hasLocations) {
+      locs = [];
+      allLocs = currDevice.device.info.locations;
+    
+      for (i = 0; i < allLocs.length; i++) {
+        locArray = allLocs[i].split(',');
+        locs[i] = new google.maps.LatLng(parseFloat(locArray[0]), parseFloat(locArray[1]))
+      }
+    
+      lines = [];
+      function addLine(i, start, end) {
+        lines[i] = new google.maps.Polyline({
+          path: [start, end],
+          strokeColor: '#9b00c1',
+          strokeWeight: 4,
+          map: map
+        });
+        if (count === locs.length - 1) {
+          count = 0;
+          for (j = 0; j < lines.length; j++) {
+            lines[j].setMap(null);
+          }
         }
       }
-    }
     
-    count = 0;
-    function drawLines() {
-      window.setInterval(function() {
-        addLine(count, locs[count], locs[++count]);
-      }, 800);
-    }
+      count = 0;
+      function drawLines() {
+        window.setInterval(function() {
+          addLine(count, locs[count], locs[++count]);
+        }, 800);
+      }
     
-    if (locs.length > 1) drawLines();
+      if (locs.length > 1) drawLines();
+    }
   }
     
   function loadScript() {
     var script = document.createElement('script');
     script.id = 'googleMapsAPI';
     script.type = 'text/javascript';
-    script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=showLocations';
+    script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=showLocation';
     document.body.appendChild(script);
   }
 }

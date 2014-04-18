@@ -1,4 +1,4 @@
-// Sonos speakers: http://www.sonos.com/system
+// "minimal" UPnP audio renderer control
 
 var sonos       = require('sonos')
   , stringify   = require('json-stringify-safe')
@@ -16,12 +16,12 @@ var sonos       = require('sonos')
 
 var logger = media.logger;
 
-var Sonos_Audio = exports.Device = function(deviceID, deviceUID, info) {
-  var o, self;
+var UPnP_Audio = exports.Device = function(deviceID, deviceUID, info) {
+  var o, options, self;
 
   self = this;
 
-  self.whatami = '/device/media/sonos/audio';
+  self.whatami = '/device/media/upnp/audio';
   self.deviceID = deviceID.toString();
   self.deviceUID = deviceUID;
   self.name = info.device.name;
@@ -31,18 +31,17 @@ var Sonos_Audio = exports.Device = function(deviceID, deviceUID, info) {
   self.sid = null;
   self.seq = 0;
 
+  options = {};
+  if (info.device.model.name === 'gmediarender') {
+    options.endpoints = { transport: '/upnp/control/rendertransport1' , rendering: '/upnp/control/rendercontrol1' };
+  }
+
   o = url.parse(info.url);
-  self.sonos = new sonos.Sonos(o.hostname, o.port);
+  self.sonos = new sonos.Sonos(o.hostname, o.port, options);
   self.status = 'idle';
   self.changed();
   self.info = { track: {}, mode: 'normal' };
   self.refreshID = null;
-
-  self.sonos.getZoneAttrs(function(err, attrs) {
-    if (err) return self.error(self, err,  'getZoneAttrs');
-
-    self.setName(attrs.CurrentZoneName);
-  });
 
   utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
     if (actor !== ('device/' + self.deviceID)) return;
@@ -57,12 +56,13 @@ var Sonos_Audio = exports.Device = function(deviceID, deviceUID, info) {
 // we poll because '/MediaRenderer/RenderingControl/Event' doesn't inform us of changes in volume/mutedness
   self.refresh(self);
 
-  self.jumpstart(self, '/MediaRenderer/AVTransport/Event');
+  self.jumpstart(self, '/upnp/event/rendertransport1');
+//  self.jumpstart(self, '/MediaRenderer/AVTransport/Event');
 };
-util.inherits(Sonos_Audio, media.Device);
+util.inherits(UPnP_Audio, media.Device);
 
 
-Sonos_Audio.prototype.jumpstart = function(self, path) {
+UPnP_Audio.prototype.jumpstart = function(self, path) {
   discovery.upnp_subscribe('device/' + self.deviceID, self.url, self.sid, path, function(err, state, response) {
     var i, secs;
 
@@ -99,7 +99,7 @@ Sonos_Audio.prototype.jumpstart = function(self, path) {
   });
 };
 
-Sonos_Audio.prototype.perform = function(self, taskID, perform, parameter) {
+UPnP_Audio.prototype.perform = function(self, taskID, perform, parameter) {
   var e, param0, params;
 
   try { params = JSON.parse(parameter); } catch(ex) { params = {}; }
@@ -108,34 +108,27 @@ Sonos_Audio.prototype.perform = function(self, taskID, perform, parameter) {
   param0 = null;
   switch (perform) {
     case 'set':
-      if (!!params.name) {
-        self.sonos.setName(params.name, function(err, data) {/* jshint unused: false */
-          if (err) return self.error(self, err,  'setName');
-
-          self.setName(params.name);
-        });
-      }
-      if (!!params.mode) {
+      if (!!params.name) self.setName(params.name);
+      if ((!!params.mode) && (self.info.mode !== params.mode)) {
         param0 = { normal   : 'NORMAL'
                  , repeat   : 'REPEAT_ALL'
-                 , shuffle  : 'SHUFFLE'
-                 , shuffle1 : 'SHUFFLE_NOREPEAT'
                  }[params.mode.toLowerCase()];
         self.sonos.setPlayMode(param0, function(err, data) {/* jshint unused: false */
           if (err) return self.error(self, err,  'setPlayMode');
         });
       }
-      if (!!params.position) {
+      if ((!!params.track) && (!!params.track.position) && (!params.track.duration)
+              && (self.info.track.position !== params.track.position)) {
         self.sonos.seek(Math.round(params.position / 1000), function(err, data) {/* jshint unused: false */
           if (err) return self.error(self, err,  'seek');
         });
       }
-      if (!!params.volume) {
+      if ((!!params.volume) && (self.info.volume !== params.volume)) {
         self.sonos.setVolume(params.volume, function(err, data) {/* jshint unused: false */
           if (err) return self.error(self, err,  'setVolume');
         });
       }
-      if (!!params.muted) {
+      if ((!!params.muted) && (self.info.muted !== params.muted)) {
         self.sonos.setMuted(params.muted === 'on' ? '1' : '0', function(err, data) {/* jshint unused: false */
           if (err) return self.error(self, err,  'setMuted');
         });
@@ -149,16 +142,8 @@ Sonos_Audio.prototype.perform = function(self, taskID, perform, parameter) {
       param0 = (!!params.url) && (params.url.length) ? devices.expand(params.url) : null;
       break;
 
-    case 'queueNext':
-      if (!params.url) return false;
-      param0 = devices.expand(params.url);
-      break;
-
     case 'stop':
     case 'pause':
-    case 'next':
-    case 'previous':
-    case 'flush':
       break;
 
     default:
@@ -178,12 +163,14 @@ Sonos_Audio.prototype.perform = function(self, taskID, perform, parameter) {
   return steward.performed(taskID);
 };
 
-Sonos_Audio.prototype.notify = function(self, headers, content) {
+UPnP_Audio.prototype.notify = function(self, headers, content) {
   var parser = new xml2js.Parser();
 
   if ((headers.sid !== self.sid) || (headers.seq < self.seq)) return;
   self.seq = headers.seq + 1;
 
+// NB: strip trailing NUL (rocki!)
+  content = content.replace(/\0+$/, '');
   try { parser.parseString(content, function(err, data) {
     if (err) {
       logger.error('device/' + self.deviceID, { event: 'xml2js.Parser', content: content, diagnostic: err.message });
@@ -198,12 +185,11 @@ Sonos_Audio.prototype.notify = function(self, headers, content) {
       var mode, status;
 
       if (err) {
-        logger.error('device/' + self.deviceID,
-                          { event      : 'xml2js.Parser'
-                          , diagnostic : 'parseString'
-                          , content    : data['e:propertyset']['e:property'][0].LastChange[0]
-                          , exception  : err });
-        return;
+        return logger.error('device/' + self.deviceID,
+                            { event      : 'xml2js.Parser'
+                            , diagnostic : 'parseString'
+                            , content    : data['e:propertyset']['e:property'][0].LastChange[0]
+                            , exception  : err });
       }
 
       status = { PLAYING          : 'playing'
@@ -211,11 +197,11 @@ Sonos_Audio.prototype.notify = function(self, headers, content) {
                , TRANSITIONING    : 'busy'
                , STOPPED          : 'idle'
                }[event.Event.InstanceID[0].TransportState[0].$.val] || 'idle';
-      mode   = { NORMAL           : 'normal'
+      if (!!event.Event.InstanceID[0].CurrentPlayMode) {
+        mode = { NORMAL           : 'normal'
                , REPEAT_ALL       : 'repeat'
-               , SHUFFLE          : 'shuffle'
-               , SHUFFLE_NOREPEAT : 'shuffle1'
                }[event.Event.InstanceID[0].CurrentPlayMode[0].$.val] || 'normal';
+      } else mode = self.info.mode;
 
       if ((self.info.mode != mode) || (self.status !== status)) {
         self.info.mode = mode;
@@ -223,6 +209,9 @@ Sonos_Audio.prototype.notify = function(self, headers, content) {
         self.changed();
         self.refresh(self);
       }
+
+// rocki!
+      if (!event.Event.InstanceID[0].CurrentTrackMetaData) return self.refresh(self);
 
       parser.parseString(event.Event.InstanceID[0].CurrentTrackMetaData[0].$.val, function(err, didl) {
         var track;
@@ -247,17 +236,41 @@ Sonos_Audio.prototype.notify = function(self, headers, content) {
         }
       });
     });
-  }); } catch(ex) { logger.error('device/' + self.deviceID, { event: 'notify', diagnostic: ex.message }); }
+  }); } catch(ex) {
+    logger.error('device/' + self.deviceID, { event: 'notify', diagnostic: ex.message });
+    console.log(content);
+  }
 };
 
-Sonos_Audio.prototype.refresh = function(self) {
+UPnP_Audio.prototype.refresh = function(self) {
   if (!!self.refreshID) { clearTimeout(self.refreshID); self.refreshID = null; }
+
+  self.sonos.getTransportInfo(function(err, info) {
+    var status;
+
+    if (err) return self.error(self, err,  'getTransportInfo');
+
+    status = { PLAYING          : 'playing'
+             , PAUSED_PLAYBACK  : 'paused'
+             , TRANSITIONING    : 'busy'
+             , STOPPED          : 'idle'
+             }[info.state] || 'idle';
+    if (self.status !== status) {
+      self.status = status;
+      self.changed();
+    }
+  });
 
   self.sonos.currentTrack(function(err, track) {
     if (err) return self.error(self, err,  'currentTrack');
 
+    if ((!!track.uri) && (!track.title) && (!track.artist) && (!track.album)) {
+      track.title = track.uri;
+      delete(track.uri);
+    }
     if ((track !== undefined)
-          && ((self.info.track.position !== (track.position * 1000))
+          && ((self.info.track.title !== track.title)
+               || (self.info.track.position !== (track.position * 1000))
                || (self.info.track.duration !== (track.duration * 1000)))) {
       delete(track.albumArtURL);
       self.info.track = track;
@@ -288,7 +301,9 @@ Sonos_Audio.prototype.refresh = function(self) {
   self.refreshID = setTimeout (function() { self.refresh(self); }, (self.status === 'idle') ? (5 * 1000) : 350);
 };
 
-Sonos_Audio.prototype.error = function(self, err, event) {
+UPnP_Audio.prototype.error = function(self, err, event) {
+  if (err.message === 'socket hang up') return;
+
   logger.error('device/' + self.deviceID, { event: event, diagnostic: err.message });
   if (self.status !== 'error') {
     self.status = 'error';
@@ -312,7 +327,7 @@ var validate_perform = function(perform, parameter) {
         result.requires.push('parameter');
         return result;
       }
-      if ((!!params.mode) && (!({ normal: true, repeat: true, shuffle: true, shuffle1: true }[params.mode.toLowerCase()]))) {
+      if ((!!params.mode) && (!({ normal: true, repeat: true }[params.mode.toLowerCase()]))) {
         result.invalid.push('mode');
       }
       if ((!!params.position) && (!media.validPosition(params.position))) result.invalid.push('position');
@@ -324,16 +339,8 @@ var validate_perform = function(perform, parameter) {
       if (!!params.url) try { validator.check(devices.expand(params.url)).isUrl(); } catch(ex) { result.invalid.push('url'); }
       break;
 
-    case 'queueNext':
-      if (!params.url) result.requires.push('url');
-      else try { validator.check(devices.expand(params.url)).isUrl(); } catch(ex) { result.invalid.push('url'); }
-      break;
-
     case 'stop':
     case 'pause':
-    case 'next':
-    case 'previous':
-    case 'flush':
       break;
 
     default:
@@ -345,45 +352,16 @@ var validate_perform = function(perform, parameter) {
 };
 
 
-var Sonos_Bridge = function(deviceID, deviceUID, info) {
-  var self;
-
-  self = this;
-
-  self.whatami = '/device/gateway/sonos/bridge';
-  self.deviceID = deviceID.toString();
-  self.deviceUID = deviceUID;
-  self.name = info.device.name;
-  self.getName ();
-
-  self.info = {};
-  self.status = 'present';
-  self.changed();
-
-  utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
-    if (actor !== ('device/' + self.deviceID)) return;
-
-    if (request === 'perform') return devices.perform(self, taskID, perform, parameter);
-  });
-};
-util.inherits(Sonos_Bridge, media.Device);
-Sonos_Bridge.prototype.perform = devices.perform;
-
-
 exports.start = function() {
-  steward.actors.device.media.sonos = steward.actors.device.media.sonos ||
-      { $info     : { type: '/device/media/sonos' } };
+  steward.actors.device.media.upnp = steward.actors.device.media.upnp ||
+      { $info     : { type: '/device/media/upnp' } };
 
-  steward.actors.device.media.sonos.audio =
-      { $info     : { type       : '/device/media/sonos/audio'
+  steward.actors.device.media.upnp.audio =
+      { $info     : { type       : '/device/media/upnp/audio'
                     , observe    : [ ]
                     , perform    : [ 'play'
                                    , 'stop'
                                    , 'pause'
-                                   , 'queueNext'
-                                   , 'flush'
-                                   , 'next'
-                                   , 'previous'
                                    , 'wake'
                                    ]
                     , properties : { name    : true
@@ -395,27 +373,12 @@ exports.start = function() {
                                                , position    : 'milliseconds'
                                                , duration    : 'milliseconds'
                                                }
-                                   , mode    : [ 'normal', 'repeat' , 'shuffle', 'shuffle1' ]
+                                   , mode    : [ 'normal', 'repeat' ]
                                    , volume  : 'percentage'
                                    , muted   : [ 'on', 'off' ]
                                    }
                     }
       , $validate : { perform    : validate_perform }
       };
-  devices.makers['urn:schemas-upnp-org:device:ZonePlayer:1'] = Sonos_Audio;
-
-  steward.actors.device.gateway.sonos = steward.actors.device.gateway.sonos ||
-      { $info     : { type: '/device/gateway/sonos' } };
-
-  steward.actors.device.gateway.sonos.bridge =
-      { $info     : { type       : '/device/gateway/sonos/bridge'
-                    , observe    : [ ]
-                    , perform    : [ 'wake' ]
-                    , properties : { name    : true
-                                   , status  : [ 'present' ]
-                                   }
-                    }
-      , $validate : { perform    : devices.validate_perform }
-      };
-  devices.makers['Sonos ZoneBridge ZB100'] = Sonos_Bridge;
+  devices.makers['urn:schemas-upnp-org:device:MediaRenderer:1'] = UPnP_Audio;
 };

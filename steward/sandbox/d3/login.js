@@ -66,7 +66,7 @@ var showLogin = function(changeLogin) {
 			form.append("img")
 				.attr("src", "popovers/assets/create-account-only.svg")
 				.style("cursor", "pointer")
-				.on("click", goClientBootstrap);
+				.on("click", function() { goClientBootstrap(true); });
 			if (ws2 || wsx) {
 				form.append("img")
 					.attr("src", "popovers/assets/developer-mode.svg")
@@ -150,7 +150,7 @@ var showLogin = function(changeLogin) {
 			td.append("img")
 					.attr("src", "popovers/assets/login.svg")
 					.style("cursor", "pointer")
-					.on("click", submitLogin);
+					.attr("onclick", "javascript:submitLogin(event)");
 			tr = table.append("tr")
 				.append("td")
 				.attr("colspan", "4")
@@ -180,15 +180,25 @@ var showLogin = function(changeLogin) {
     return ((/iPhone/.test(navigator.userAgent)) || (/iPad/.test(navigator.userAgent)));
   }
   
-  function goClientBootstrap() {
+  function goClientBootstrap(firstUser) {
 		var clientURL =
 		    { hostname : window.location.hostname
 				, port     : (window.location.protocol.indexOf('https:') === 0) ? '8888' : '8887'
 				, protocol : window.location.protocol
 				, path     : '/d3/index.html'
 				};
+		var bootstrapURL = clientURL;
     clientURL = encodeURIComponent(clientURL.protocol + '//' + clientURL.hostname + ':' + clientURL.port + clientURL.path);
-    var bootstrapURL = '../client.html?clientURL=' + clientURL;
+		bootstrapURL.path = '/../client.html';
+		if (firstUser) {
+		  bootstrapURL.hostname = (bootstrapURL.hostname !== 'steward.local') ? '127.0.0.1' : 'steward.local';
+		  bootstrapURL.port = '8887';
+		  bootstrapURL.protocol = 'http:';
+		}
+    bootstrapURL = bootstrapURL.protocol + '//' + 
+                   bootstrapURL.hostname + ':' + 
+                   bootstrapURL.port + 
+                   bootstrapURL.path + '?clientURL=' + clientURL;
     window.location.href = bootstrapURL;
   }
 };
@@ -253,7 +263,7 @@ var showReauth = function() {
 }
 
 var showSettings = function() {
-  var btn, chkbox, div, div2, form, i, img, lbl, option, radio, select, settings, span, txtbox;
+  var btn, chkbox, div, div2, form, i, img, lbl, option, radio, select, service, settings, span, table, td, tr, txtbox;
   
   if (document.getElementById('settings')) return;
   
@@ -367,13 +377,13 @@ var showSettings = function() {
   form.appendChild(div2);
 
   select = document.createElement('select');
-  select.setAttribute('id', 'bootableChoice');
-  select = addBootables(select);
+  select.setAttribute('id', 'cloudChoice');
+  select = addClouds(select);
   form.appendChild(select);
   
   span = document.createElement('span')
   span.setAttribute('id', 'cloud-instructions');
-  span.innerHTML = "&larr; " + bootable[select.value].text + " " + bootable[select.value].instructions;
+  span.innerHTML = "&larr; " + clouds[select.value].text + " " + clouds[select.value].instructions;
   form.appendChild(span);
   
   var labelArray = labeledBoxes(select);
@@ -385,11 +395,36 @@ var showSettings = function() {
   btn.setAttribute('type', 'image');
   btn.setAttribute('src', 'images/form-button-four-blue.svg');
   btn.setAttribute('value', 'Add Cloud Service');
-  btn.setAttribute('style', 'float: right; margin-right: -10px; margin-top: 10px;');
+  btn.setAttribute('style', 'float: right; margin-right: -10px; margin-top: 10px; margin-bottom: 10px; ');
   btn.setAttribute('onclick', 'javascript:return addCloud(event);');
-
   form.appendChild(btn);
 
+  table = document.createElement('table');
+  table.setAttribute('class', 'short-form cloud-table');
+  for (service in clouds) {
+    if (clouds[service].authorizeText && clouds[service].authorizeURL) {
+      tr = document.createElement('tr');
+      td = document.createElement('td');
+      td.setAttribute('style', 'text-transform: capitalize;');
+      td.innerHTML = clouds[service].name;
+      tr.appendChild(td);
+      
+      td = document.createElement('td');
+      td.innerHTML = clouds[service].authorizeText;
+      tr.appendChild(td);
+      
+      td = document.createElement('td');
+      img = document.createElement('img');
+      img.setAttribute('src', 'popovers/assets/authorize.svg');
+      img.setAttribute('onclick', 'javascript:window.open("' + clouds[service].authorizeURL + '","_blank")');
+      td.appendChild(img);
+      tr.appendChild(td);
+      
+      table.appendChild(tr);
+    }
+  }
+  form.appendChild(table);
+  
   img = document.createElement('img');
   img.setAttribute('src', 'popovers/assets/done_on.svg');
   img.setAttribute('style', 'float: right; margin-right: -10px;  margin-top: 10px; clear: both;');
@@ -405,7 +440,7 @@ var showSettings = function() {
   document.getElementById("longitude").addEventListener('change', function(evt) {place_info.location[1] = evt.target.value; savePlace(event); });
   document.getElementById("displayUnits").addEventListener('change', pickDisplayUnits);
   document.getElementById("strictLAN").addEventListener('change', pickStrict);
-  document.getElementById("bootableChoice").addEventListener('change', pickBootable);
+  document.getElementById("cloudChoice").addEventListener('change', pickCloud);
 
   fillPlaceFields();
     
@@ -448,9 +483,9 @@ var showSettings = function() {
   }
   
   // Populate select element with networked product names
-  function addBootables(select) {
+  function addClouds(select) {
     var optgroup, option;
-    var keys = getKeys(bootable);
+    var keys = getKeys(clouds);
     
     for (var i = 0; i < keys.length; i++) {
       option = document.createElement('option');
@@ -499,11 +534,11 @@ var labeledBoxes = function(select) {
   var labels = [];
   var choice = select.value;
   if (!choice) return labels;
-  var keys = getKeys(bootable[choice].info);
+  var keys = getKeys(clouds[choice].info);
   for (i = 0; i < keys.length; i++) {
     pwd = ['credentials', 'password', 'passphrase'].indexOf(keys[i]) >= 0;
-    labels[i] = labeledBox(keys[i].toUpperCase(), 'bootChoice' + i, 'bootChoiceLabel' + i, 
-      						 20, bootable[choice].info[keys[i]], pwd);
+    labels[i] = labeledBox(keys[i].toUpperCase(), 'cloudChoice' + i, 'cloudChoiceLabel' + i, 
+      						 20, clouds[choice].info[keys[i]], pwd);
   }
   return labels;
 }    
@@ -537,10 +572,10 @@ var getKeys = function(obj) {
   return keys;
 }
 
-var pickBootable = function(evt) {
+var pickCloud = function(evt) {
   var form, i, labelArray, oldLabels;
   document.getElementById("cloud-instructions").innerHTML = 
-    "&larr; " + bootable[evt.target.value].text + " " + bootable[evt.target.value].instructions;
+    "&larr; " + clouds[evt.target.value].text + " " + clouds[evt.target.value].instructions;
   form = document.getElementById("cloud-form");
   oldLabels = form.getElementsByTagName("label");
   for (i = oldLabels.length - 1; i >= 0; i--) {
@@ -554,11 +589,11 @@ var pickBootable = function(evt) {
 }
 
 var stowInfo = function(evt) {
-  var choice = document.getElementById("bootableChoice").value;
-  var info = bootable[choice].info;
+  var choice = document.getElementById("cloudChoice").value;
+  var info = clouds[choice].info;
   var keys = Object.keys(info);
   for (var i = 0; i < keys.length; i++) {
-    bootable[choice].info[keys[i]] = document.getElementById("bootChoice" + i).value;
+    clouds[choice].info[keys[i]] = document.getElementById("cloudChoice" + i).value;
   }
 }
 
@@ -640,18 +675,18 @@ var fillPlaceFields = function() {
 }
 
 var savePlace = function(evt) {
-    perform_actors(ws2 || wsx, 'place', 'set', place_info, function() { });
+    if (!!ws2 || !!wsx) perform_actors(ws2 || wsx, 'place', 'set', place_info, function() { });
 }
 
 var addCloud = function(evt) {
   var emptyP = false, entry, i, val;
-  if (document.getElementById("bootableChoice").selectedIndex === 0) return false; 
+  if (document.getElementById("cloudChoice").selectedIndex === 0) return false; 
   var form = document.getElementById("cloud-form");
   var labels = form.getElementsByTagName("label");
-  var name = document.getElementById("bootableChoice").value;
-  var info = bootable[name].info;
+  var name = document.getElementById("cloudChoice").value;
+  var info = clouds[name].info;
 
-  entry = bootable[name];
+  entry = clouds[name];
   for (prop in info) if ((info.hasOwnProperty(prop)) && (info[prop] === '')) emptyP = true;
   if (!emptyP) {
     val = JSON.stringify({ path      : '/api/v1/device/create/' + name
@@ -662,7 +697,7 @@ var addCloud = function(evt) {
                          });
     wsSend(val);
     for (i = 0; i < labels.length; i++) {
-      document.getElementById("bootChoice" + i).value = "";
+      document.getElementById("cloudChoice" + i).value = "";
       info[getKeys(info)[i]] = "";
     }
   }
@@ -676,7 +711,7 @@ var place_info   = { name        : 'Home'
                    , strict      : 'on'
                    };
 
-var bootable = { '':
+var clouds = { '':
                  { text         : 'Choose a cloud service to enter its authentication credentials.'
                  , instructions : ''
                  , info         : {}
@@ -826,6 +861,18 @@ var bootable = { '':
                  , actor        : '/device/indicator/nma/text'
                  , info         :
                    { apikey     : ''
+                   }
+                 }
+               , plantlink      :
+                 { text         : 'If you have a PlantLink system, the steward can manage it for you.'
+                 , instructions : 'Enter your email address and password.'
+                 , site         : 'https://myplantlink.com/dashboard'
+                 , icon         : ''
+                 , name         : 'plantlink'
+                 , actor        : '/device/gateway/plantlink/cloud'
+                 , info         :
+                   { email      : ''
+                   , passphrase : ''
                    }
                  }
                , prowl          :
