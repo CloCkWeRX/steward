@@ -3,6 +3,7 @@ var arp         = require('arp-a')
   , geocoder    = require('geocoder')
   , serialport  = require('serialport')
   , stringify   = require('json-stringify-safe')
+  , suncalc     = require('suncalc')
   , url         = require('url')
   , util        = require('util')
   , wakeonlan   = require('wake_on_lan')
@@ -284,6 +285,57 @@ Device.prototype.proplist = function() {
          , info      : info
          , updated   : !!self.updated ? new Date(self.updated) : null
          };
+};
+
+Device.prototype.initInfo = function(params) {
+  var self = this;
+
+  var actors, i, param, path, status;
+
+  status = 'present';
+  if (!!params.status) {
+    status = params.status;
+    delete(params.status);
+  }
+
+  self.info = {};
+
+  path = self.whatami.split('/');
+  actors = steward.actors;
+  for (i = 1; i < path.length; i++) {
+    if (!actors[path[i]]) break;
+    actors = actors[path[i]];
+  }
+  if ((!actors) || (!actors.$info)) {
+    for (param in params) if ((params.hasOwnProperty(param)) && (typeof params[param] !== 'undefined')) {
+      self.info[param] = params[param];
+    }
+    return status;
+  }
+
+  self.$properties = actors.$info.properties;
+  for (param in params) {
+    if ((params.hasOwnProperty(param)) && (!!self.$properties[param])) self.info[param] = params[param];
+  }
+
+  return status;
+};
+
+Device.prototype.updateInfo = function(params) {
+  var self = this;
+
+  var param, updateP;
+
+  updateP = false;
+
+  for (param in params) {
+    if ((!params.hasOwnProperty(param)) || (self.info[param] !== 'undefined') || (self.info[param] === params[param])) continue;
+
+    self.info[param] = params[param];
+    updateP = true;
+  }
+
+  return updateP;
 };
 
 var sensor = null;
@@ -739,7 +791,7 @@ exports.traverse = function(actors, prefix, depth) {
 
 // expansion of '.[deviceID.property].'
 exports.expand = function(line, defentity) {
-  var entity, field, info, p, part, parts, result, who, x;
+  var entity, field, info, now, p, part, parts, result, term, then, times, who, x;
 
   if (typeof line !== 'string') return line;
   result = '';
@@ -753,7 +805,8 @@ exports.expand = function(line, defentity) {
       continue;
     }
 
-    parts = line.substring(0, x).split('.');
+    term = line.substring(0, x);
+    parts = term.split('.');
     line = line.substring(x + 2);
 
     entity = null;
@@ -782,12 +835,46 @@ exports.expand = function(line, defentity) {
     for (p = 1; p < parts.length; p++) {
       part = parts[p];
       if (!info) return null;
-      if ((typeof info[part] === 'undefined') || (info[part].length === 0)) {
+      if ((utility.toType(info[part]) === 'null') || (typeof info[part] === 'undefined') || (info[part].length === 0)) {
         field = '';
         break;
       }
       info = info[part];
       field = info;
+
+      if ((part === 'location') && (util.isArray(info)) && ((p + 1) < parts.length) && (parts[p + 1] === 'solar')) {
+        p++;
+        now = new Date();
+        times = suncalc.getTimes(now.getTime(), info[0], info[1]);
+        if ((!!times) && (times.solarNoon.getDate() != now.getDate())) {
+          now.setDate(now.getDate() + 1);
+          times = suncalc.getTimes(now.getTime(), info[0], info[1]);
+        }
+        if (!times) {
+          field = '';
+          break;
+        }
+
+             if ((times.nightEnd      <= now) && (now < times.dawn))          field = 'dawn';
+        else if ((times.dawn          <= now) && (now < times.sunrise))       field = 'morning-twilight';
+        else if ((times.sunrise       <= now) && (now < times.sunriseEnd))    field = 'sunrise';
+        else if ((times.sunriseEnd    <= now) && (now < times.goldenHourEnd)) field = 'morning';
+        else if ((times.goldenHourEnd <= now) && (now < times.goldenHour))    field = 'daylight';
+        else if ((times.goldenHour    <= now) && (now < times.sunsetStart))   field = 'evening';
+        else if ((times.sunsetStart   <= now) && (now < times.sunset))        field = 'sunset';
+        else if ((times.sunset        <= now) && (now < times.dusk))          field = 'evening-twilight';
+        else if ((times.dusk          <= now) && (now < times.night))         field = 'dusk';
+        else if ((times.night         <= now) || (now < times.nightEnd))      field = 'night';
+        else                                                                  field = 'kairos';
+      } else if ((!isNaN(field)) && ((p + 1) < parts.length) && (parts[p + 1] === 'ago')) {
+        p++;
+        then = new Date(field);
+        if (!then) {
+          field = '';
+          break;
+        }
+        field = Math.round((new Date().getTime() - field) / 1000);
+      }
     }
     result += field;
   }
@@ -801,7 +888,7 @@ var scanning = {};
 
 exports.scan_usb = function(logger2, tag, fingerprints, callback) {
   serialport.list(function(err, info) {
-    var i, j;
+    var i, j, k;
 
     var f = function(comName) {
       return function(err) { if (!!err) delete(scanning[comName]); };
@@ -823,6 +910,10 @@ exports.scan_usb = function(logger2, tag, fingerprints, callback) {
           if (!info[i].productId)    info[i].productId    = fingerprints[j].productId;
           if (!info[i].manufacturer) info[i].manufacturer = fingerprints[j].manufacturer;
           if (!info[i].serialNumber) info[i].serialNumber = info[i].pnpId.substr(fingerprints[j].pnpId.length).split('-')[0];
+          if (!info[i].serialNumber) {
+            k = info[i].comName.lastIndexOf('-');
+            if (k !== -1) info[i].serialNumber = info[i].comName.substr(k + 1);
+          }
 
           if (!!scanning[info[i].comName]) continue;
           scanning[info[i].comName] = true;

@@ -20,11 +20,13 @@ var Insteon_OnOff = exports.Device = function(deviceID, deviceUID, info) {
   self.name = info.device.name;
   self.getName();
 
-  self.url = info.url;
   self.status = 'waiting';
   self.changed();
   self.gateway = info.gateway;
-  self.insteon = info.device.unit.serial;
+  self.insteonID = info.device.unit.serial;
+  self.info = {};
+
+  if (!self.gateway.roundtrip) self.light = self.gateway.insteon.light(self.insteonID);
 
   utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
     if (actor !== ('device/' + self.deviceID)) return;
@@ -32,7 +34,7 @@ var Insteon_OnOff = exports.Device = function(deviceID, deviceUID, info) {
     if (request === 'perform') return self.perform(self, taskID, perform, parameter);
   });
 
-  self.gateway.upstream[self.insteon] = self;
+  if (!!self.gateway.upstream) self.gateway.upstream[self.insteonID] = self;
   self.refresh(self);
   setInterval(function() { self.refresh(self); }, 30 * 1000);
 };
@@ -40,7 +42,13 @@ util.inherits(Insteon_OnOff, plug.Device);
 
 
 Insteon_OnOff.prototype.refresh = function(self) {
-  self.gateway.roundtrip(self.gateway, '0262' + self.insteon + '001900');
+  if (!self.light) return self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '001900');
+
+  self.light.level(function(err, brightness) {
+    if (!!err) return logger.error('device/' + self.deviceID, { event: 'light.level', diagnostic: err.message });
+
+    self.onoff(self, brightness > 0);
+  });
 };
 
 Insteon_OnOff.prototype.callback = function(self, messageType, message) {
@@ -48,7 +56,7 @@ Insteon_OnOff.prototype.callback = function(self, messageType, message) {
     case '0250':
       switch (message.substr(message.length - 6, 2)) {
         case '20':
-          return self.onoff(self, message.substr(-2));
+          return self.onoff(self, message.substr(-2) !== '00');
 
         default:
           break;
@@ -63,7 +71,7 @@ Insteon_OnOff.prototype.callback = function(self, messageType, message) {
       switch (message.substr(message.length - 8, 4)) {
         case '0011':
         case '0013':
-          return self.onoff(self, message.substr(-4));
+          return self.onoff(self, message.substr(-4) !== '00');
 
         default:
           break;
@@ -76,8 +84,8 @@ Insteon_OnOff.prototype.callback = function(self, messageType, message) {
   return logger.warning('device/' + self.deviceID, { event: 'unexpected message', message: message });
 };
 
-Insteon_OnOff.prototype.onoff = function(self, octets) {
-  var onoff = (octets !== '00') ? 'on' : 'off';
+Insteon_OnOff.prototype.onoff = function(self, onoff) {
+  onoff = onoff ? 'on' : 'off';
 
   if (self.status === onoff) return;
 
@@ -87,7 +95,7 @@ Insteon_OnOff.prototype.onoff = function(self, octets) {
 
 
 Insteon_OnOff.prototype.perform = function(self, taskID, perform, parameter) {
-  var params, state;
+  var event, params, state;
 
   try { params = JSON.parse(parameter); } catch(ex) { params = {}; }
 
@@ -100,7 +108,16 @@ Insteon_OnOff.prototype.perform = function(self, taskID, perform, parameter) {
 
   logger.info('device/' + self.deviceID, { perform: state });
 
-  self.gateway.roundtrip(self.gateway, '0262' + self.insteon + '00' + (state.on ? '12FF' : '1400'));
+  if (!self.light) {
+    self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '00' + (state.on ? '12FF' : '1400'));
+  } else {
+    event = state.on ? 'turnOnFast' : 'turnOffFast';
+    self.light[event](function(err, results) {/* jshint unused: false */
+      if (!!err) return logger.info('device/' + self.deviceID, { event: event, diagnostic: err.message });
+
+      self.onoff(self, state.on);
+    });
+  }
   return steward.performed(taskID);
 };
 
@@ -125,6 +142,8 @@ var validate_perform = function(perform, parameter) {
 
 
 exports.start = function() {
+  var pair;
+
   steward.actors.device['switch'].insteon = steward.actors.device['switch'].insteon ||
       { $info     : { type: '/device/switch/insteon' } };
 
@@ -144,4 +163,13 @@ exports.start = function() {
   devices.makers['Insteon.0230'] = Insteon_OnOff;
   devices.makers['Insteon.0235'] = Insteon_OnOff;
   devices.makers['Insteon.0236'] = Insteon_OnOff;
+
+  try {
+    pair = require('./../devices-gateway/gateway-insteon-automategreen').pair;
+
+    pair ({ '/device/switch/insteon/onoff' : { maker   :   Insteon_OnOff
+                                             , entries : [ '0209', '022d', '0230', '0235', '0236'  ]
+                                             }
+          });
+  } catch(ex) { }
 };

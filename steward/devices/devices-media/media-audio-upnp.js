@@ -17,7 +17,7 @@ var sonos       = require('sonos')
 var logger = media.logger;
 
 var UPnP_Audio = exports.Device = function(deviceID, deviceUID, info) {
-  var o, options, self;
+  var i, o, options, self, services;
 
   self = this;
 
@@ -31,9 +31,23 @@ var UPnP_Audio = exports.Device = function(deviceID, deviceUID, info) {
   self.sid = null;
   self.seq = 0;
 
-  options = {};
-  if (info.device.model.name === 'gmediarender') {
-    options.endpoints = { transport: '/upnp/control/rendertransport1' , rendering: '/upnp/control/rendercontrol1' };
+  options = { endpoints: {} };
+  if ((!!info.upnp.root)
+         && (util.isArray(info.upnp.root.device))
+         && (!!info.upnp.root.device[0])
+         && (util.isArray(info.upnp.root.device[0].serviceList))
+         && (!!info.upnp.root.device[0].serviceList[0])
+         && (util.isArray(info.upnp.root.device[0].serviceList[0].service))) {
+    services = info.upnp.root.device[0].serviceList[0].service;
+
+    for (i = 0; i < services.length; i++) {
+      if (services[i].serviceId[0] === 'urn:upnp-org:serviceId:AVTransport') {
+        options.endpoints.transport = services[i].controlURL[0];
+        options.endpoints.subscription = services[i].eventSubURL[0];
+      } else if (services[i].serviceId[0] === 'urn:upnp-org:serviceId:RenderingControl') {
+        options.endpoints.rendering = services[i].controlURL[0];
+      }
+    }
   }
 
   o = url.parse(info.url);
@@ -55,9 +69,7 @@ var UPnP_Audio = exports.Device = function(deviceID, deviceUID, info) {
 
 // we poll because '/MediaRenderer/RenderingControl/Event' doesn't inform us of changes in volume/mutedness
   self.refresh(self);
-
-  self.jumpstart(self, '/upnp/event/rendertransport1');
-//  self.jumpstart(self, '/MediaRenderer/AVTransport/Event');
+  self.jumpstart(self, options.endpoints.subscription);
 };
 util.inherits(UPnP_Audio, media.Device);
 
@@ -73,7 +85,12 @@ UPnP_Audio.prototype.jumpstart = function(self, path) {
                                             , headers : stringify(response.headers)
                                             });
 
-    if (err) {
+    if ((response.statusCode === 500) && (self.sid === null) && (!response.headers.sid)) {
+      logger.error('device/' + self.deviceID, { event: 'subscribe', diagnostic: 'subscribe not available' });
+      return;
+    }
+
+    if (!!err) {
       self.error(self, err, 'subscribe');
       setTimeout(function() { self.jumpstart(self, path); }, secs * 30 * 1000);
       return;
@@ -298,7 +315,7 @@ UPnP_Audio.prototype.refresh = function(self) {
     }
   });
 
-  self.refreshID = setTimeout (function() { self.refresh(self); }, (self.status === 'idle') ? (5 * 1000) : 350);
+  self.refreshID = setTimeout(function() { self.refresh(self); }, (self.status === 'idle') ? (5 * 1000) : 350);
 };
 
 UPnP_Audio.prototype.error = function(self, err, event) {
@@ -352,6 +369,31 @@ var validate_perform = function(perform, parameter) {
 };
 
 
+var UPnP_Ignore = function(deviceID, deviceUID, info) {
+  var self;
+
+  self = this;
+
+  self.whatami = '/device/media/upnp/ignore';
+  self.deviceID = deviceID.toString();
+  self.deviceUID = deviceUID;
+  self.name = info.device.name;
+  self.getName ();
+
+  self.info = {};
+  self.status = 'present';
+  self.changed();
+
+  utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
+    if (actor !== ('device/' + self.deviceID)) return;
+
+    if (request === 'perform') return devices.perform(self, taskID, perform, parameter);
+  });
+};
+util.inherits(UPnP_Ignore, media.Device);
+UPnP_Ignore.prototype.perform = devices.perform;
+
+
 exports.start = function() {
   steward.actors.device.media.upnp = steward.actors.device.media.upnp ||
       { $info     : { type: '/device/media/upnp' } };
@@ -381,4 +423,21 @@ exports.start = function() {
       , $validate : { perform    : validate_perform }
       };
   devices.makers['urn:schemas-upnp-org:device:MediaRenderer:1'] = UPnP_Audio;
+
+  steward.actors.device.media.upnp.ignore =
+      { $info     : { type       : '/device/media/upnp/ignore'
+                    , observe    : [ ]
+                    , perform    : [ 'wake' ]
+                    , properties : { name    : true
+                                   , status  : [ 'present' ]
+                                   }
+                    }
+      , $validate : { perform    : devices.validate_perform }
+      };
+
+  discovery.upnp_register('/device/media/upnp/toshiba', function(upnp) {
+    if (upnp.root.device[0].manufacturer[0] === 'Toshiba') return '/device/media/upnp/ignore';
+    if (upnp.root.device[0].manufacturer[0] === 'DIRECTV') return '/device/media/upnp/ignore';
+  });
+  devices.makers['/device/media/upnp/ignore'] = UPnP_Ignore;
 };

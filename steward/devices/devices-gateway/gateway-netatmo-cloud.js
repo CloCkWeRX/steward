@@ -37,6 +37,7 @@ var Cloud = exports.Device = function(deviceID, deviceUID, info) {
   self.elide = [ 'passphrase' ];
   self.changed();
   self.timer = null;
+  self.seen = {};
 
   utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
     var macaddr;
@@ -68,12 +69,12 @@ Cloud.prototype.login = function(self) {
   self.netatmo.logger = utility.logfnx(logger, 'device/' + self.deviceID);
 
   self.netatmo.on('error', function(err) {
-    self.error(self, err);
+    self.error(self, 'background', err);
 
     if (!!self.timer) { clearInterval(self.timer); self.timer = null; }
     setTimeout(function() { self.login(self); }, 30 * 1000);
   }).setConfig(client1, client2, self.info.email, self.info.passphrase).getToken(function(err) {
-    if (!!err) { self.netatmo = null; return self.error(self, err); }
+    if (!!err) { self.netatmo = null; return self.error(self, 'setConfig', err); }
 
     self.status = 'ready';
     self.changed();
@@ -84,10 +85,10 @@ Cloud.prototype.login = function(self) {
   });
 };
 
-Cloud.prototype.error = function(self, err) {
+Cloud.prototype.error = function(self, event, err) {
   self.status = (err.message.indexOf('connect') !== -1) ? 'error' : 'reset';
   self.changed();
-  logger.error('device/' + self.deviceID, { diagnostic: err.message });
+  logger.error('device/' + self.deviceID, { event: event, diagnostic: err.message });
 };
 
 Cloud.prototype.scan = function(self) {
@@ -96,7 +97,7 @@ Cloud.prototype.scan = function(self) {
   self.netatmo.getDevices(function(err, results) {
     var coordinates, i, id, j, modules, place, station, stations;
 
-    if (!!err) return self.error(self, err);
+    if (!!err) return self.error(self, 'getDevices', err);
 
     if (results.status !== 'ok') {
       return logger.error('device/' + self.deviceID, { operation: 'getDevices', results: results });
@@ -117,10 +118,16 @@ Cloud.prototype.scan = function(self) {
         coordinates = [ place.location[1], place.location[0] ];
         if (!!place.altitude) coordinates.push(place.altitude);
       } else coordinates = null;
-      self.addstation(self, station, station.station_name, station.last_data_store[station._id], coordinates);
+      self.addstation(self, station, station.station_name,
+                      util.isArray(station.last_data_store) ? station.last_data_store[station._id] : station.last_data_store,
+                      coordinates);
       for (j = 0; j < station.modules.length; j++) {
         id = station.modules[j];
-        if (!!modules[id]) self.addstation(self, modules[id], station.station_name, station.last_data_store[id], coordinates);
+        if (!!modules[id]) {
+          self.addstation(self, modules[id], station.station_name,
+                          util.isArray(station.last_data_store) ? station.last_data_store[id]
+                                                                : modules[id].last_data_store, coordinates);
+        }
       }
     }
   });
@@ -142,12 +149,13 @@ Cloud.prototype.addstation = function(self, station, name, data, coordinates) {
   };
 
   params = { location     : coordinates
-           , lastSample   : (!!data.K) ? (data.K * 1000) : null
-           , temperature  : (!!data.a) ? data.a          : null
-           , humidity     : (!!data.b) ? data.b          : null
-           , co2          : (!!data.h) ? data.h          : null
-           , noise        : (!!data.S) ? data.S          : null
-           , pressure     : (!!data.e) ? data.e          : null
+           , lastSample   : (!isNaN(data.K)) ? (data.K * 1000) : null
+           , temperature  : (!isNaN(data.a)) ? data.a          : null
+           , humidity     : (!isNaN(data.b)) ? data.b          : null
+           , co2          : (!isNaN(data.h)) ? data.h          : null
+           , noise        : (!isNaN(data.S)) ? data.S          : null
+           , pressure     : (!isNaN(data.e)) ? data.e          : null
+           , waterLevel   : (!isNaN(data.f)) ? data.f          : null
            , batteryLevel : batteryLevel()
            , rssi         : station.rf_status
            };
@@ -159,6 +167,11 @@ Cloud.prototype.addstation = function(self, station, name, data, coordinates) {
 
     return sensor.update(sensor, params);
   }
+  if (!!self.seen[udn]) return;
+  self.seen[udn] = true;
+
+  if ((station.type !== 'NAMain') && (station.type.indexOf('NAModule') === -1)) return;
+  params.placement = { NAModule1: true, NAModule3 : true }[station.type] ? 'outdoors' : 'indoors';
 
   info =  { source: self.deviceID, gateway: self, params: params };
   info.device = { url                          : null
@@ -173,7 +186,7 @@ Cloud.prototype.addstation = function(self, station, name, data, coordinates) {
                                  }
                 };
   info.url = info.device.url;
-  info.deviceType = '/device/climate/netatmo/meteo';
+  info.deviceType = station.type !== 'NAModule3' ? '/device/climate/netatmo/meteo' : '/device/climate/netatmo/rain';
   info.id = info.device.unit.udn;
   macaddrs[station._id.split('-').join('').split(':').join('').toLowerCase()] = true;
 
@@ -258,5 +271,9 @@ exports.start = function() {
 
     logger.debug(tag, { ipaddr: ipaddr, macaddr: macaddr });
     newaddrs[macaddr] = ipaddr;
+  });
+
+  utility.acquire2(__dirname + '/../*/*-netatmo-*.js', function(err) {
+    if (!!err) logger('netatmo-cloud', { event: 'glob', diagnostic: err.message });
   });
 };

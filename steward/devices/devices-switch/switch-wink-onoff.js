@@ -79,9 +79,10 @@ OnOff.prototype.perform = function(self, taskID, perform, parameter) {
   }
 
   if ((perform !== 'on' && perform !== 'off') || perform === self.status) return false;
-
   powered = perform === 'on' ? true : false;
+
   logger.info('device/' + self.deviceID, { perform: { on: powered } });
+
   self.gateway.wink.setOutlet(self.params, { powered : powered }, function(err, params) {
     if (!!err) return logger.error('device/' + self.deviceID, { event: 'setOutlet', diagnostic: err.message });
 
@@ -121,7 +122,6 @@ exports.start = function() {
                     , perform    : [ 'off', 'on' ]
                     , properties : { name     : true
                                    , status   : [ 'on', 'off' ]
-                                   , property : true
                                    }
                     }
       , $validate : { perform    : validate_perform

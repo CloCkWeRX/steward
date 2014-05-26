@@ -52,7 +52,7 @@ Cloud.prototype.login = function(self) {
 
   if (!!self.timer) clearInterval(self.timer);
 
-  var bgerror = function(err) { logger.error('device/' + self.device, { event: 'background', diagnostic: err.message }); };
+  var bgerror = function(err) { logger.error('device/' + self.deviceID, { event: 'background', diagnostic: err.message }); };
 
   self.lookup('automatic', function(err, options) {
     var client, user;
@@ -324,4 +324,8 @@ exports.start = function() {
                     }
       };
   devices.makers['/device/gateway/automatic/cloud'] = Cloud;
+
+  utility.acquire2(__dirname + '/../*/*-automatic-*.js', function(err) {
+    if (!!err) logger('automatic-cloud', { event: 'glob', diagnostic: err.message });
+  });
 };

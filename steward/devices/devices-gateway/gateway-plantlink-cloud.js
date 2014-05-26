@@ -50,7 +50,7 @@ util.inherits(Cloud, gateway.Device);
 Cloud.prototype.login = function(self) {
   self.cloudapi = new CloudAPI({ logger     : utility.logfnx(logger, 'device/' + self.deviceID)
                                }).login(self.info.email, self.info.passphrase, function(err) {
-    if (!!err) { self.cloudapi = null; return self.error(self, err); }
+    if (!!err) { self.cloudapi = null; return self.error(self, 'login', err); }
 
     self.status = 'ready';
     self.changed();
@@ -59,17 +59,17 @@ Cloud.prototype.login = function(self) {
     self.timer = setInterval(function() { self.scan(self); }, self.pollsecs * 1000);
     self.scan(self);
   }).on('error', function(err) {
-    self.error(self, err);
+    self.error(self, 'background', err);
 
     if (!!self.timer) { clearInterval(self.timer); self.timer = null; }
     setTimeout(function() { self.login(self); }, 30 * 1000);
   });
 };
 
-Cloud.prototype.error = function(self, err) {
+Cloud.prototype.error = function(self, event, err) {
   self.status = (err.message.indexOf('connect') !== -1) ? 'error' : 'reset';
   self.changed();
-  logger.error('device/' + self.deviceID, { diagnostic: err.message });
+  logger.error('device/' + self.deviceID, { event: event, diagnostic: err.message });
 };
 
 Cloud.prototype.scan = function(self) {
@@ -78,7 +78,7 @@ Cloud.prototype.scan = function(self) {
   self.cloudapi.getGarden(function(err, plants, links, stations) {
     var battery, info, ipaddr, k, link, params, plant, rssi, secs, station, status, udn;
 
-    if (!!err) return self.error(self, err);
+    if (!!err) return self.error(self, 'getGarden', err);
 
     for (k in plants) {
       if (!plants.hasOwnProperty(k)) continue;
@@ -135,9 +135,10 @@ Cloud.prototype.scan = function(self) {
       if (!link.last_measurements) link.last_measurements = [];
       if (link.last_measurements.length === 0) link.last_measurements[0] = { updated: link.updated };
 
+// link.moisture_raw_reading = twos complement raw voltage reading
       params = { placement       : link.placement
                , lastSample      : link.last_measurements[0].updated * 1000
-//             , moisture        :
+               , waterVolume     : (link.last_measurements[0].moisture * 100).toFixed(2)
                };
       if (!!link.last_measurements[0].battery) {
         battery = link.last_measurements[0].battery * 125;
@@ -300,19 +301,14 @@ util.inherits(Station, gateway.Device);
 Station.prototype.perform = devices.perform;
 
 Station.prototype.update = function(self, params, status) {
-  var param, updateP;
+  var updateP = false;
 
-  updateP = false;
   if ((!!status) && (status !== self.status)) {
     self.status = status;
     updateP = true;
   }
-  for (param in params) {
-    if ((!params.hasOwnProperty(param)) || (!params[param]) || (self.info[param] === params[param])) continue;
+  if (self.updateInfo(params)) updateP = true;
 
-    self.info[param] = params[param];
-    updateP = true;
-  }
   if (updateP) self.changed();
 };
 
@@ -348,6 +344,10 @@ exports.start = function() {
       , $validate : { perform    : devices.validate_perform }
       };
   devices.makers['/device/gateway/plantlink/station'] = Station;
+
+  utility.acquire2(__dirname + '/../*/*-plantlink-*.js', function(err) {
+    if (!!err) logger('plantlink-cloud', { event: 'glob', diagnostic: err.message });
+  });
 };
 
 

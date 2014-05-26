@@ -47,7 +47,7 @@ Cloud.prototype.login = function(self) {
                                         , clientSecret : self.info.accessSecret
                                         , logger       : utility.logfnx(logger, 'device/' + self.deviceID)
                                         }).login(self.info.email, self.info.passphrase, function(err) {
-    if (!!err) { self.cloudapi = null; return self.error(self, err); }
+    if (!!err) { self.cloudapi = null; return self.error(self, 'login', err); }
 
     self.status = 'ready';
     self.changed();
@@ -56,17 +56,17 @@ Cloud.prototype.login = function(self) {
     self.timer = setInterval(function() { self.scan(self); }, 300 * 1000);
     self.scan(self);
   }).on('error', function(err) {
-    self.error(self, err);
+    self.error(self, 'background', err);
 
     if (!!self.timer) { clearInterval(self.timer); self.timer = null; }
     setTimeout(function() { self.login(self); }, 30 * 1000);
   });
 };
 
-Cloud.prototype.error = function(self, err) {
+Cloud.prototype.error = function(self, event, err) {
   self.status = (err.message.indexOf('connect') !== -1) ? 'error' : 'reset';
   self.changed();
-  logger.error('device/' + self.deviceID, { diagnostic: err.message });
+  logger.error('device/' + self.deviceID, { event: event, diagnostic: err.message });
 };
 
 Cloud.prototype.scan = function(self) {
@@ -75,7 +75,7 @@ Cloud.prototype.scan = function(self) {
   self.cloudapi.getGarden(function(err, plants, sensors) {
     var antoine, info, k, params, plant, sample, sensor, udn;
 
-    if (!!err) return self.error(self, err);
+    if (!!err) return self.error(self, 'getGarden', err);
 
     for (k in plants) {
       if (!plants.hasOwnProperty(k)) continue;
@@ -145,6 +145,7 @@ Cloud.prototype.scan = function(self) {
                , placement    : sensors[k].location_name
                , lastSample   : new Date(sample.capture_ts).getTime()
                , moisture     : sample.vwc_percent >= 0 ? sample.vwc_percent * Math.pow(10, antoine - 2) : undefined
+               , waterVolume  : sample.vwc_percent >= 0 ? sample.vwc_percent.toFixed(2) : undefined
                , temperature  : sample.air_temperature_celsius
                , light        : sample.par_umole_m2s * 54
                };
@@ -262,4 +263,8 @@ exports.start = function() {
                     }
       };
   devices.makers['/device/gateway/flower-power/cloud'] = Cloud;
+
+  utility.acquire2(__dirname + '/../*/*-flower-power-*.js', function(err) {
+    if (!!err) logger('flower-power-cloud', { event: 'glob', diagnostic: err.message });
+  });
 };

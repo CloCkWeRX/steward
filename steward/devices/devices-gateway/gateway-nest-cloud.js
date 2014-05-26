@@ -304,7 +304,7 @@ exports.start = function() {
     newaddrs[macaddr] = ipaddr;
   });
 
-// NB: needed on RPi where disk is a bit slow... (may eventually be needed for other gateways)
-  require('./../devices-climate/climate-nest-control').start();
-  require('./../devices-sensor/sensor-nest-smoke').start();
+  utility.acquire2(__dirname + '/../*/*-nest-*.js', function(err) {
+    if (!!err) logger('nest-cloud', { event: 'glob', diagnostic: err.message });
+  });
 };

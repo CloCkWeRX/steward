@@ -8,6 +8,7 @@ var fs          = require('fs')
   , steward     = require('./../core/steward')
   , manage      = require('./../routes/route-manage')
   , utility     = require('./../core/utility')
+  , broker      = utility.broker
   ;
 
 
@@ -57,9 +58,11 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
 
     if (!message.clientName) message.clientName = '';
 
-    if (!!users[uuid])                                      return error(false, 'duplicate uuid', 'user/' + users[uuid].userID);
+    if (!!users[uuid])                                      return error(false, 'duplicate uuid',
+                                                                         (!!users[uuid].userID) ? 'user/' + users[uuid].userID
+                                                                                                : null);
     if (!!name2user(name))                                  return error(false, 'duplicate name');
-    users[uuid] = {};
+    users[uuid] = {};    // this is why we check for count() <= 1
   } else {
     pair = uuid.split('/');
     if (pair.length !== 2)                                  return error(true,  'invalid uuid');
@@ -72,7 +75,11 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
     if (!message.comments) message.comments = '';
 
     if (!!clients[uuid])                                    return error(false, 'duplicate uuid',
-                                                                         'user/' + user.userName + '/' +clients[uuid].clientID);
+                                                                         (!!clients[uuid].clientID)
+                                                                          ? 'user/' + user.userName + '/'
+                                                                              + clients[uuid].clientID
+                                                                          : null);
+
     if (!!name2client(user, name))                          return error(false, 'duplicate name');
     clients[uuid] = {};
   }
@@ -80,7 +87,7 @@ var create = exports.create = function(logger, ws, api, message, tag, internalP)
   client = id2user(ws.clientInfo.userID);
   createP = ws.clientInfo.loopback
            || ((!!client) && (client.userRole === 'master'))
-           || ((!!user) ? (user.userID === ws.clientInfo.userID) : (exports.count() === 0))
+           || ((!!user) ? (user.userID === ws.clientInfo.userID) : (exports.count() <= 1))
            || (internalP && ws.clientInfo.local);
 
   if (!createP) {
@@ -265,7 +272,7 @@ var list = function(logger, ws, api, message, tag) {/* jshint unused: false */
 };
 
 var authenticate = exports.authenticate = function(logger, ws, api, message, tag) {
-  var client, clientID, date, i, meta, now, pair, params, results, stamp, user;
+  var client, clientID, date, entry, i, meta, now, pair, params, results, stamp, user, ws2;
 
   var error = function(permanent, diagnostic) {
     return manage.error(ws, tag, 'user authentication', message.requestID, permanent, diagnostic);
@@ -320,7 +327,21 @@ var authenticate = exports.authenticate = function(logger, ws, api, message, tag
     stamp = utility.clone(meta);
     stamp.tag = tag;
     stamp.timestamp = new Date();
-    server.logins[tag] = stamp;
+    server.logins[tag] = { stamp: stamp };
+
+    if (!!ws.ws2) {
+      for (entry in server.logins) if (server.logins.hasOwnProperty(entry)) {
+        ws2 = server.logins[entry].ws;
+        if ((!ws2) || (ws2.clientInfo.clientID !== ws.clientInfo.clientID)) continue;
+
+        ws2.close(1001, 'automatic close');
+        delete(server.logins[entry]);
+        broker.publish('actors', 'logout', ws2.clientInfo.clientSerialNo);
+        break;
+      }
+
+      server.logins[tag].ws = ws.ws2;
+    }
 
     now = new Date();
 // http://stackoverflow.com/questions/5129624/convert-js-date-time-to-mysql-datetime

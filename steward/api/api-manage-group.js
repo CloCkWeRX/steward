@@ -90,7 +90,8 @@ var create = function(logger, ws, api, message, tag) {
   }
 
   if (!!groups[uuid])                                       return error(false, 'duplicate uuid',
-                                                                         'group/' + groups[uuid].groupID);
+                                                                         (!!groups[uuid].groupID)
+                                                                           ? 'group/' + groups[uuid].groupID : null);
   groups[uuid] = {};
 
   results = { requestID: message.requestID };
@@ -491,6 +492,7 @@ var perform = exports.perform = function(logger, ws, api, message, tag) {
   if (group.groupType === 'task') return perform2(logger, ws, message, group, tag);
   else if (group.groupType !== 'device')                    return error(true,  'invalid groupType: ' + group.groupType);
 
+  if (!message.perform) logger.error(tag, message);
   if (!message.perform)                                     return error(true,  'missing perform element');
   if (!message.perform.length)                              return error(true,  'empty perform element');
 

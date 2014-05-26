@@ -4,7 +4,7 @@ var actors           = {}
   , tags             = {}
   , containers       = {}
   , multiple_arcs    = []
-  , lastUpdated      = []
+  , lastUpdated
   , lastIconTrayPage = 1
   , lastStageScroll  = 0
   , firstLoad        = true
@@ -95,14 +95,12 @@ var home = function(state) {
   img.setAttribute('onclick', 'javascript:showSettings()');
   chart.appendChild(img);
 
-if (true) {
   img = document.createElement('img');
   img.setAttribute('id', 'to-voice');
   img.setAttribute('src', 'popovers/assets/microphone.svg');
   img.setAttribute('title', 'To voice control settings...');
   img.setAttribute('onclick', 'javascript:showVoiceSettings()');
   chart.appendChild(img);
-}
   
   chart = document.getElementById('chart');
 
@@ -120,7 +118,7 @@ if (true) {
   div.innerHTML = 'Touch a thing for more info.';
   chart.appendChild(div);
   
-  lastUpdated = place.updated;
+  if (place.updated) lastUpdated = place.updated;
   
   span = (place.info.conditions) ? 
           ('<span style="background-color: #fff; position: absolute; left: 0px; top: -7px; width: 26px;">'
@@ -288,10 +286,10 @@ if (false) {
   setTimeout(updateAgo, 1000);
 
   self.onUpdate = function(updates) {
-    var actorID, update, refresh = false;
-    lastUpdated = [];
+    var actorID, device, i, j, update, refresh = false;
+    lastUpdated = [lastUpdated];
     if (!document.getElementById('stage')) return;
-    for (var i = 0; i < updates.length; i++) {
+    for (i = 0; i < updates.length; i++) {
       update = updates[i];
 
       if ((update.info.whatami && update.info.whatami.match(/\/device\/gateway\//)) ||
@@ -314,6 +312,14 @@ if (false) {
       if (document.getElementById(actorID)) {
         document.getElementById(actorID).style.backgroundColor = statusColor(update);
         document.getElementById(actorID + '-label').style.color = statusColor(update);
+        list_actors(ws2, '', { depth: 'all' }, function(message) {
+          devices = mostDevices(message);
+          actors = { };
+          for (j = 0; j < devices.length; j++) {
+            device = devices[j];
+            actors[device.actor] = device;
+          }
+        });
       } else {
         refresh = true;
       }
@@ -357,8 +363,12 @@ var onUpdate_drilldown = function(updates) {
     update = updates[i];
     if (update.whatami.match(/\/device\/gateway\//)) continue;
     if (update.whatami.match(/\/place/)) {
-      if (!!lastUpdated && !!update.updated) lastUpdated.push(update.updated);
-      continue;
+      if (!!lastUpdated && !!update.updated) {
+        lastUpdated = [lastUpdated];
+        lastUpdated.push(update.updated);
+        lastUpdated = lastUpdated.sort(function(a, b) {return b - a;})[0];
+        continue;
+      }
     }
     
     actors[update.whoami].info = update.info;
@@ -737,7 +747,7 @@ var single_device_drilldown = function(state, arcs, instructions) {
 var single_device_arcs = function(device) {
   var a0, a1, arcs, brightness, color, delta, metric, level, now, prop, v, v2;
 
-  metric = place_info.displayUnits === 'metric';
+  metric = place.info.displayUnits === 'metric';
   arcs = [];
 
   now = new Date().getTime();
@@ -1012,13 +1022,14 @@ var single_climate_instructions = function(device) {
 var climate_device_arcs = function(device) {
   var arcs, i, metric, now, prop, props, v;
 
-  metric = place_info.displayUnits === 'metric';
+  metric = place.info.displayUnits === 'metric';
   arcs = [];
 
   if (!device.info.lastSample) device.info.lastSample = device.updated;
   props = sortprops(device.info, [ 'lastSample',
                                  , 'temperature',     'airQuality',      'voc'
-                                 , 'goalTemperature', 'flame',           'moisture', 'needsWater',    'text'
+                                 , 'goalTemperature', 'flame',           'moisture', 'waterVolume',   'waterLevel',
+                                                      'needsWater',      'text'
                                  , 'humidity',        'co2',             'smoke',    'light',         'flow',
                                                       'needsMist',       'rssi'
                                  , 'hvac',            'noise',           'co',       'concentration', 'nextSample',
@@ -1104,6 +1115,27 @@ var climate_device_arcs = function(device) {
                           , label  : 'MOISTURE'
                           , cooked : v.toFixed(3) + ' mb'
                           , value  : clip2bars(v, 50, 250)
+                          , index  : 0.50
+                          });
+        break;
+
+      case 'waterVolume':
+        if (!!device.info.moisture) break;
+        arcs.splice(2, 0, { name   : prop
+                          , raw    : v
+                          , label  : 'WATER CONCENTRATION'
+                          , cooked : v + '%'
+                          , value  : clip2bars(v, 21, 70)
+                          , index  : 0.50
+                          });
+        break;
+
+      case 'waterLevel':
+        arcs.splice(2, 0, { name   : prop
+                          , raw    : v
+                          , label  : 'PRECIPITATION'
+                          , cooked : v.toFixed(2) + 'mm'
+                          , value  : clip2bars(v, 0, 10)
                           , index  : 0.50
                           });
         break;
@@ -1590,7 +1622,7 @@ var single_motive_instructions = function(device) {
 var motive_device_arcs = function(device) {
   var arcs, cooked, dist, i, prop, props, v;
 
-  metric = place_info.displayUnits === 'metric';
+  metric = place.info.displayUnits === 'metric';
   arcs = [];
   props = sortprops(device.info, [ 'lastSample', 'location', 'velocity', 'heading', 'odometer', 'charger', 'intTemperature' ]);
 
@@ -1963,7 +1995,7 @@ var single_weather_drilldown = function(state) {
 var weather_arcs = function(device) {
   var arcs, codeValues, metric, prop, v, v2;
   
-  metric = place_info.displayUnits === 'metric';
+  metric = place.info.displayUnits === 'metric';
   
   arcs = [];
   

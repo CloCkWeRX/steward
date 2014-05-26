@@ -15,7 +15,7 @@ var db;
 
 
 var create = function(logger, ws, api, message, tag) {
-  var actor, actorID, actorType, entity, guard, p, parts, results, uuid, v;
+  var actor, actorID, actorType, entity, group, guard, p, parts, results, uuid, v;
 
   var error = function(permanent, diagnostic, viz) {
     return manage.error(ws, tag, 'task creation', message.requestID, permanent, diagnostic, viz);
@@ -41,16 +41,16 @@ var create = function(logger, ws, api, message, tag) {
   entity = actor.$lookup(actorID);
   if (!entity)                    return error(false, 'unknown entity ' + message.actor);
 
+  if (!message.perform) logger.error(tag, message);
   if (!message.perform)           return error(true,  'missing perform element');
   if (!message.perform.length)    return error(true,  'empty perform element');
-
   if (!message.parameter) message.parameter = '{}';
 
   if (actorType !== 'group') {
     parts = entity.whatami.split('/');
     actor = actors;
     try { for (p = 1; p < parts.length; p++) actor = actor[parts[p]]; } catch(ex) { actor = null; }
-    if (!actor)                     return error(false,  'internal error');
+    if (!actor)                   return error(false,  'internal error');
     if ((!!actor.$validate) && (!!actor.$validate.perform)) {
       v = actor.$validate.perform(message.perform, message.parameter);
       if ((v.invalid.length > 0) || (v.requires.length > 0)) return error(false, 'invalid parameters ' + stringify(v));
@@ -59,15 +59,27 @@ var create = function(logger, ws, api, message, tag) {
 
   if (!message.guard) message.guard = '/';
   guard = message.guard.split('/');
-  if (guard.length !== 2)       return error(true,  'invalid guard element');
+  if (guard.length !== 2)         return error(true,  'invalid guard element');
   guard[1] = guard[1].toString();
   if (guard[0] !== '') {
-    actor = actors[guard[0]];
-    if (!actor)                   return error(true,  'invalid guard ' + message.actor);
-    if (!actor.$lookup(guard[1])) return error(false, 'unknown guard ' + message.actor);
+    switch (guard[0]) {
+      case 'group':
+        group = groups.id2group(guard[1]);
+        if (!group)               return error(false, 'unknown guard ' + message.guard);
+        if (group.groupType !== 'event')return error(false, 'not an event ' + message.guard);
+        break;
+
+      case 'event':
+        if (!events.id2event(guard[1]))return error(false, 'unknown guard ' + message.guard);
+        break;
+
+      default:
+                                  return error(true, 'invalid event ' + message.guard);
+    }
   }
 
-  if (!!tasks[uuid])              return error(false, 'duplicate uuid', 'task/' + tasks[uuid].taskID);
+  if (!!tasks[uuid])              return error(false, 'duplicate uuid',
+                                               (!!tasks[uuid].taskID) ? 'task/' + tasks[uuid].taskID : null);
   tasks[uuid] = {};
 
   results = { requestID: message.requestID };
@@ -116,7 +128,7 @@ var create = function(logger, ws, api, message, tag) {
 };
 
 var list = function(logger, ws, api, message, tag) {
-  var actor, againP, allP, entity, group, i, id, member, p, parts, props, results, suffix, task, treeP, type, uuid, who;
+  var actor, againP, allP, entity, event, group, i, id, member, p, parts, props, results, suffix, task, treeP, type, uuid, who;
 
   if (!readyP()) return manage.error(ws, tag, 'task listing', message.requestID, false, 'database not ready');
 
@@ -159,27 +171,21 @@ var list = function(logger, ws, api, message, tag) {
         }
 
         if (!task.guard) continue;
-        actor = actors[task.guardType];
-        if (!actor) continue;
-        entity = actor.$lookup(task.guardID);
-        if (!!entity) {
-          props = (!!entity.proplist) ? entity.proplist() : actor.$proplist(task.guardID, entity);
-          who = props.whoami; delete(props.whoami);
-          type = props.whatami.split('/')[1];
-          if (!results.result[type + 's']) results.result[type + 's'] = {};
-          results.result[type + 's'][who] = props;
+        if (task.guardType === 'group') {
+          group = groups.id2group(task.guardiD);
+          if (!group) continue;
 
-          if (allP) {
-            parts = props.whatami.split('/');
-            actor = actors;
-            for (p = 1; p < parts.length; p++) actor = actor[parts[p]];
-            if (!!actor) {
-              props = clone(actor.$info);
-              type = props.type; delete(props.type);
-              results.result.actors[type] = props;
-            }
-          }
+          if (!results.result.groups) results.result.groups = {};
+          results.result.group[task.guard] = groups.proplist(null, group);
+          continue;
         }
+
+        if (task.guardType !== 'event') continue;
+        event = events.id2event(task.guardID);
+        if (!event) continue;
+
+        if (!results.result.events) results.result.events = {};
+        results.result.events[task.guard] = events.proplist(null, event);
       }
     }
   }
@@ -232,7 +238,6 @@ var list = function(logger, ws, api, message, tag) {
               results.result.actors[type] = props;
             }
           }
-
         }
       }
     }

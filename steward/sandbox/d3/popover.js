@@ -30,9 +30,10 @@ function dragmove(d) {
 					by1 = by2;
 				}
 				var pct = 100 - parseInt(((by1 - max + 1)/(min - max)) * 100);
+				pct = (pct === 0) ? 1 : pct;
 				d3.select("#slider-readout").text(pct + "%").style("top", by1 + 7 + "px");
 				newPerform.parameter.brightness = pct;
-				performParams = { perform:'on', parameter: {brightness : pct} };
+				performParams = { perform: newPerform.perform, parameter: newPerform.parameter };
 				return by1 + "px";
 			});
 			break;
@@ -145,7 +146,7 @@ function dragmove(d) {
 				bx2 = Math.min(bx2, max);
 				var pct = (bx2 - min)/(max - min);
 				newPerform.parameter.level = parseInt((pct * 100), 10);
-			  performParams = { perform:'set', parameter: {'level' : newPerform.parameter.level} };
+			  performParams = { perform: newPerform.perform, parameter: newPerform.parameter };
 				return bx2 + "px";
 			});
 			break;
@@ -1012,8 +1013,8 @@ var showPop = function(device) {
      	.attr("class", "level-knob")
       .attr("id", "level-knob")
      	.attr("src", "popovers/assets/knob.large.off.svg");
-     elem.call(drag);
      if (hasLevel) {
+       elem.call(drag);
        if (device.status === "on") {
 		     elem
 		       .attr("src", "popovers/assets/knob.large.svg");
@@ -1026,6 +1027,8 @@ var showPop = function(device) {
      } else {
 		   elem
 			  .style("left", bigHorSlider.max + "px");
+			 div
+			  .style("opacity", 0.4);
      }
 // If we decide to add readout box to level slider
 //      if (hasLevel) {
@@ -1275,7 +1278,7 @@ var ColorPickerMgr = {
         		addCIE(color.cie1931.x ,color.cie1931.y);
         		break;
         	case 'hue':         
-        		addHSV((color.hue, color.saturation / 100, currDevice.device.info.brightness / 100));
+        		addHSV((color.hue.hue, color.hue.saturation / 100, currDevice.device.info.brightness / 100));
         		break;
         	case 'rgb':         
         		addRGB(color.rgb.r, color.rgb.g, color.rgb.b);
@@ -1400,8 +1403,8 @@ var ColorPickerMgr = {
 		 cp = ColorPicker(document.getElementById("color-picker"),
 	
 		 function(hex, hsv, rgb) {
-		   newPerform.parameter.color.hue = hsv.h;
-		   newPerform.parameter.color.saturation = hsv.s;
+		   newPerform.parameter.color.hue.hue = (!hsv.h || hsv.h < 0) ? 0 : hsv.h;
+		   newPerform.parameter.color.hue.saturation = (!hsv.s) ? 0 : hsv.s;
 		 });
 		 
 		 cp.setHsv({h:h, s:s, v:v});
@@ -1467,7 +1470,7 @@ var ColorPickerMgr = {
         		updateCIE(color.cie1931.x ,color.cie1931.y);
         		break;
         	case 'hue':         
-        		updateHSV((color.hue, color.saturation / 100, currDevice.device.info.brightness / 100));
+        		updateHSV((color.hue.hue, color.hue.saturation / 100, currDevice.device.info.brightness / 100));
         		break;
         	case 'rgb':         
         		updateRGB(color.rgb.r, color.rgb.g, color.rgb.b);
@@ -1508,14 +1511,17 @@ var ColorPickerMgr = {
        };
        
        function updateHSV(h, s, v) {
+    		 if (!h) h = 0;
+		     if (!s) s = 0;
+		     if (!v) v = 1;
          if (colorModelHasChanged('hue')) {
            removeCIEPicker();
            ColorPickerMgr.addColorPicker(d3.select("#pop-substrate"), info);
          } else {
 		   cp = ColorPicker(document.getElementById("color-picker"),
 		     function(hex, hsv, rgb) {
-		       newPerform.parameter.color.hue = hsv.h;
-		       newPerform.parameter.color.saturation = hsv.s;
+		       newPerform.parameter.color.hue.hue = (!hsv.h || hsv.h < 0) ? 0 : hsv.h;
+		       newPerform.parameter.color.hue.saturation = (!hsv.s) ? 0 : hsv.s;
 		     });
 		   cp.setHsv({h:h, s:s, v:v});
 		 }
@@ -1974,7 +1980,7 @@ function motiveGoalTempText(info) {
 }
 
 function isPlaceMetric() {
-  return (place_info.displayUnits === "metric");
+  return (place.info.displayUnits === "metric");
 }
 
 function asFahrenheit(celsius) {
@@ -2000,7 +2006,8 @@ function clearPerformParams() {
 
 function sendPerform() {
   var deviceID = currDevice.actor.slice(currDevice.actor.lastIndexOf("/") + 1);
-	perform_device(ws2, deviceID, performParams.perform, performParams.parameter, function(message) {});
+//  console.log("Perform: " + performParams.perform + "   /    " + JSON.stringify(performParams.parameter));
+	if (!!performParams) perform_device(ws2, deviceID, performParams.perform, performParams.parameter, function(message) { });
 }
 
 function sendData(device) {

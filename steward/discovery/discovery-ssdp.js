@@ -20,9 +20,10 @@ var client;
 var listening;
 
 var listen = function(addr, portno) {/* jshint multistr: true */
-  var data, filename, ssdp;
+  var data, filename, filepath, ssdp;
 
-  filename = __dirname + '/../sandbox/index.xml';
+  filename = 'index-' + addr + '.xml';
+  filepath = __dirname + '/../sandbox/' + filename;
   data =
 '<?xml version="1.0"?>\
 \
@@ -44,18 +45,18 @@ var listen = function(addr, portno) {/* jshint multistr: true */
     <presentationURL></presentationURL>\
   </device>\
 </root>';
-  fs.unlink(filename, function(err) {/* jshint unused: false */
-    fs.writeFile(filename, data, { encoding: 'utf8', mode: parseInt(0644, 8), flag: 'w' }, function(err) {
-      if (err) {
+  fs.unlink(filepath, function(err) {/* jshint unused: false */
+    fs.writeFile(filepath, data, { encoding: 'utf8', mode: parseInt('0644', 8), flag: 'w' }, function(err) {
+      if (!!err) {
         logger.error('discovery', { event: 'fs.writefile', diagnostic: err.message });
-        fs.unlink(filename);
+        fs.unlink(filepath);
       }
     });
   });
 
   ssdp = new SSDP();
   ssdp.logger = logger;
-  ssdp.description = 'index.xml';
+  ssdp.description = filename;
   ssdp.addUSN('upnp:rootdevice');
   ssdp.addUSN('urn:schemas-upnp-org:device:Basic:1');
 
@@ -68,7 +69,7 @@ var listen = function(addr, portno) {/* jshint multistr: true */
   }
 
   client = ssdp;
-  client.description = 'index.xml';
+  client.description = filename;
   client.on('advertise-alive', function(heads) {
     logger.debug('advertise-alive', { heads: stringify(heads) });
   }).on('advertise-bye', function(heads) {
@@ -160,6 +161,8 @@ exports.ssdp_discover = function(info, options, callback) {
       }
 
       try { parser.parseString(content, function(err, data) {
+        var pair;
+
         if (!!err) {
           if (content === 'status=ok') return;    // Chromecast (when playing)
           return logger.error('discovery', { event      : 'parser.parseString'
@@ -182,29 +185,37 @@ exports.ssdp_discover = function(info, options, callback) {
         if (!data.root.device[0].modelDescription) data.root.device[0].modelDescription = [''];
         if (!data.root.device[0].modelNumber) data.root.device[0].modelNumber = [''];
 
-        info.device = {
-            url          : (!!data.root.URLBase) ? data.root.URLBase[0] : options.protocol + '//' + options.host + '/'
-          , name         : data.root.device[0].friendlyName[0]
-          , manufacturer : data.root.device[0].manufacturer[0]
-          , model        : {
-                name        : data.root.device[0].modelName[0]
+        info.upnp = data;
+
+        info.device =
+          { url             : (!!data.root.URLBase) ? data.root.URLBase[0] : options.protocol + '//' + options.host + '/'
+          , name            : data.root.device[0].friendlyName[0]
+          , manufacturer    : data.root.device[0].manufacturer[0]
+          , model           :
+              { name        : data.root.device[0].modelName[0]
               , description : data.root.device[0].modelDescription[0]
               , number      : data.root.device[0].modelNumber[0]
               }
-          , unit         : {
-                serial      : data.root.device[0].serialNumber[0]
+          , unit            :
+              { serial      : data.root.device[0].serialNumber[0]
               , udn         : data.root.device[0].UDN[0]
               }
           };
         info.url = info.device.url;
-        info.deviceType = info.device.model.name;
-        info.deviceType2 = data.root.device[0].deviceType[0];
-        if ((!!data.root.device[0].serviceList)
-                && (!!data.root.device[0].serviceList[0].service)
-                && (!!data.root.device[0].serviceList[0].service[0])) {
-          info.deviceType3 = data.root.device[0].serviceList[0].service[0].serviceType[0];
+
+        for (pair in pairings) if (pairings.hasOwnProperty(pair)) {
+          try { info.deviceType = pairings[pair](info.upnp); } catch(ex) { continue; }
+          if (!!info.deviceType) break;
         }
-// NB: pity we don't have a pattern matcher and could put in a /device/... whatami path here...
+        if (!info.deviceType) {
+          info.deviceType = info.device.model.name;
+          info.deviceType2 = data.root.device[0].deviceType[0];
+          if ((!!data.root.device[0].serviceList)
+                  && (!!data.root.device[0].serviceList[0].service)
+                  && (!!data.root.device[0].serviceList[0].service[0])) {
+            info.deviceType3 = data.root.device[0].serviceList[0].service[0].serviceType[0];
+          }
+        }
         info.id = info.device.unit.udn;
         if (!!devices.devices[info.id]) return;
 
@@ -220,6 +231,13 @@ exports.ssdp_discover = function(info, options, callback) {
     if (!!callback) return callback(err);
     logger.error('discovery', { event: 'http.get', options: options, diagnostic: err.message });
   });
+};
+
+
+var pairings = {};
+
+exports.upnp_register = function(deviceType, f) {
+  pairings[deviceType] = f;
 };
 
 

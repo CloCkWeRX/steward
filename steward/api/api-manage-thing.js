@@ -41,6 +41,7 @@ var pair = function(logger, ws, api, message, tag) {
   return users.create(logger,
                      { clientInfo : ws.clientInfo
                      , send       : function(data) { pair2(logger, ws, data, tag); }
+                     , ws2        : ws
                      },
                      { prefix     : '/api/v1/user/create'
                      },
@@ -85,6 +86,7 @@ var hello = function(logger, ws, api, message, tag) {
   return users.authenticate(logger,
                            { clientInfo : ws.clientInfo
                            , send       : function(data) { hello2(logger, ws, data, tag); }
+                           , ws2        : ws
                            },
                            { prefix     : '/api/v1/user/authenticate'
                            },
@@ -323,7 +325,7 @@ var update = function(logger, ws, api, message, tag) {
     child = devices.devices[thingIDs[thingID].udn];
     if (!child)                                             return error(true, 'internal error');
     device = child.device;
-    if (device.clientSerialNo !== ws.clientInfo.clientSerialNo) {
+    if ((!device) || (device.clientSerialNo !== ws.clientInfo.clientSerialNo)) {
       results.things[thingID] = { error : { permanent: false, diagnostic: 'invalid clientID' } };
       continue;
     }
@@ -365,6 +367,8 @@ var report = function(logger, ws, api, message, tag) {
   var error = function(permanent, diagnostic) {
     return manage.error(ws, tag, 'thing reporting', message.requestID, permanent, diagnostic);
   };
+
+  if ((!!message.tasks) && (!message.events))               return true;
 
   if (!message.events)                                      return error(true,  'missing event element');
 
@@ -473,7 +477,7 @@ exports.start = function() {
                    });
   manage.apis.push({ prefix   : '/api/v1/thing/hello'
                    , route    : hello
-                   , access   : manage.access.level.attach
+                   , access   : manage.access.level.none    // does its own checking...
                    , required : { thingID  : 'id'
                                 , response : true
                                 }
@@ -602,13 +606,15 @@ Thing.prototype.perform = function(self, taskID, perform, parameter) {
   taskIDs[id] = { taskID: taskID, clientID: self.ws.clientInfo.clientID, remoteAddress: self.ws.clientInfo.remoteAddress };
 
   requestID++;
-  message = { path: '/api/v1/thing/perform', requestID: requestID.toString(), events: {} };
+  message = { path: '/api/v1/thing/perform', requestID: requestID.toString(), tasks: {} };
   message.tasks[id] = { thingID   : thingUDNs[self.id]
                       , perform   : perform
                       , parameter : typeof parameter !== 'string' ? stringify(parameter) : parameter
                       , testOnly  : false };
 
   try { self.ws.send(JSON.stringify(message)); } catch(ex) { console.log(ex); }
+
+  return true;
 };
 
 // TBD: later, not sure how to deal with async/sync interaction

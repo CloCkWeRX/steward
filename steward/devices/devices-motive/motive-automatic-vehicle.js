@@ -10,13 +10,11 @@ var polyline    = require('polyline-encoded')
   ;
 
 
-// var logger   = motive.logger;
+var logger   = motive.logger;
 
 
 var Vehicle = exports.device = function(deviceID, deviceUID, info) {
-  var param, self;
-
-  self = this;
+  var self = this;
 
   self.whatami = info.deviceType;
   self.deviceID = deviceID.toString();
@@ -24,12 +22,8 @@ var Vehicle = exports.device = function(deviceID, deviceUID, info) {
   self.name = info.device.name;
   self.getName();
 
-  self.info = { locations: [] };
-  for (param in info.params) {
-    if ((info.params.hasOwnProperty(param)) && (!!info.params[param])) self.info[param] = info.params[param];
-  }
-
-  self.status = 'present';
+  self.status = self.initInfo(info.params);
+  self.info.locations = [];
   self.changed();
 
   broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
@@ -43,19 +37,14 @@ Vehicle.prototype.perform = devices.perform;
 
 
 Vehicle.prototype.update = function(self, params, status) {
-  var param, updateP;
+  var updateP = false;
 
-  updateP = false;
   if ((!!status) && (status !== self.status)) {
     self.status = status;
     updateP = true;
   }
-  for (param in params) {
-    if ((!params.hasOwnProperty(param)) || (!params[param]) || (self.info[param] === params[param])) continue;
+  if (self.updateInfo(params)) updateP = true;
 
-    self.info[param] = params[param];
-    updateP = true;
-  }
   if (updateP) self.changed();
 };
 
@@ -71,8 +60,8 @@ Vehicle.prototype.webhook = function(self, event, data) {/* jshint unused: false
     if (!util.isArray(self.info.location)) {
       self.info.location = [ 0, 0 ];
       self.info.accuracy = data.location.accuracy_m;
-      setInterval(function() { self.reverseGeocode(self); }, 60 * 1000);
-      setTimeout(function() { self.reverseGeocode(self); }, 0);
+      setInterval(function() { self.reverseGeocode(self, logger); }, 60 * 1000);
+      setTimeout(function() { self.reverseGeocode(self, logger); }, 0);
     }
     if ((self.info.location[0] != data.location.lat) || (self.info.location[1] != data.location.lon)) {
       self.info.location[0] = data.location.lat;
@@ -108,6 +97,7 @@ Vehicle.prototype.webhook = function(self, event, data) {/* jshint unused: false
 
   if (updateP) self.changed();
 };
+
 
 exports.start = function() {
   steward.actors.device.motive.automatic = steward.actors.device.motive.automatic ||

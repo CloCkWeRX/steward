@@ -222,7 +222,11 @@ exports.start = function() {
   steward.actors.device.gateway.yoctopuce.virtual.$info.type = '/device/gateway/yoctopuce/virtual';
   devices.makers.VirtualHub = Hub;
 
-  scan();
+  utility.acquire2(__dirname + '/../*/*-yoctopuce-*.js', function(err) {
+    if (!!err) logger('yoctopuce-hub', { event: 'glob', diagnostic: err.message });
+
+    scan();
+  });
 };
 
 // if VirtualHub is running locally, we won't see it via SSDP, so:
@@ -232,6 +236,6 @@ var scan = function() {
                           , ssdp   : { LOCATION : 'http://127.0.0.1:4444/ssdp.xml', ST: 'upnp:rootdevice' }
                           , device : { }
                           }, url.parse('http://127.0.0.1:4444/ssdp.xml'), function(err) {
-    if (!!err) { setTimeout(scan, 30 * 1000); }
+    if (!!err) return setTimeout(scan, 30 * 1000);
   });
 };

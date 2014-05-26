@@ -1,18 +1,144 @@
 CHANGELOG
 =========
 
-## Release 1.7 "Salt Pretzel - TBD
+## Release 1.8 "Barbecue Ribs" - May 28, 2014
 ## Commit - TBD
 
 ### Steward
+- condition evaluation robustness
+- APIs:
+    - duplicate UUID robustness on .../create
+    - task creation robustness for guard
+    - thing perform and update robustness
+    - automatically logout a thing when it logs in again
+- Discovery
+    - allow SSDP hook for discovery
+    - create index.xml for each interface
+- Device Expansion
+    - add *.solar, *.ago expansion
+    - remove debug output
+- HTTP server
+    - use node-static for faster serving of static content
+
 ### TAAS (Things as a Service)
+- no changes
+
 ### TSRP (Thing Simple Reporting Protocol)
+- support loopback multicast (in case kumoapp-tsrp is running on the same system)
+
 ### Places
+- robustness when geocoding fails
+
 ### Things
-### HTML5/client
+- devices: add common functions to remove duplicate code in many drivers
+- device/climate:
+    - insteon/control: initial check-in, not yet operational
+    - netatmo/*: support new API result
+    - netatmo/rain: NEW
+    - plantlink/soil: use 'waterVolume' (percentage) as an alternative to 'moisture' (millibars)
+    - wink/control: initial check-in, not yet operational
+- device/gateway:
+    - defer scanning until all subordinates loaded
+    - insteon/*: replace driver with (home-controller)[https://github.com/automategreen/home-controller] package
+- device/indicator:
+    - instapush/text: NEW
+    - pushover/text: NEW
+    - twitter/text: NEW
+- device/lighting:
+    - all dimmers: if performing 'on', treat a zero-valued brightness as 100%
+- device/media:
+    - upnp/audio: robustness
+    - pioneer/receiver: NEW
+    - roku/video: enabled
+    - sonos/audio:
+        - detect 'zoned' status
+        - robustness
+    - ignore: DirecTV and Toshiba renderers
+- device/motive:
+    - tesla/model-s: udpated for better energy, security monitoring
+       (cf., [tesla.js](https://github.com/TheThingSystem/node-taas-client/blob/master/tesla.js) in node-taas-client)
+- device/presence:
+- device/sensor:
+- device/switch:
+    - all dimmers: if performing 'on', treat a zero-valued level as 100%
+- device/wearable:
+
+### HTML5/D3 client
+- if slider disabled, do not allow interaction
+- dimmer setting robustness
+- display units now properly set on startup
+- robustness when setting values for place/1
+
 ### User policy client
+- no changes
+
 ### Developer console
+- no changes
+
 ### Utilities
+- start-up script: add argument to enable/disable bluetooth
+- list-ssdp:
+    - robustness
+    - dive into root UPnP devices only
+
+## Release 1.7 "Salt Pretzel" - April 28, 2014
+## Commit - ea6ddff00026c4402d51cbf671c1dbc349a61c64
+
+### Steward
+- platforms with multiple interfaces no longer race the CPU
+- more startup robustness
+- more user creation robustness
+- more robustness in UUID calculation on startup
+- APIs:
+    - thing creation: more robustness
+
+### TAAS (Things as a Service)
+- no changes
+
+### TSRP (Thing Simple Reporting Protocol)
+- no changes
+
+### Places
+- no changes
+
+### Things
+- device/climate/plantlink/*: NEW
+- device/gateway:
+    - */cloud: better diagnostics
+    - plantlink/cloud: NEW
+    - reelyactive/reelceiver: better (though not perfect) reel discovery
+- device/indicator:
+    - grovestreams/sensor: robustness additions
+- device/media:
+    - */audio: invoke device.expand on URL parameter
+    - sonos/audio: fix typo when validating 'play' command
+    - upnp/audio: NEW (ROCKI for the win!)
+- device/motive:
+    - automatic/vehicle: invoke reverseGeocode prototype with logging argument
+    - lockitron/lock: fix travis' complaint (that jshint missed)
+    - tesla/model-s:
+        - invoke reverseGeocode prototype with logging argument
+	- API call rate limiting robustness
+
+### HTML5/D3 client
+- ensure that the first user created for a steward has the 'master' role
+- remote access authentication robustness
+- developer mode consistency
+- honor place/1 displayUnits setting
+- display location and distance arcs for all location-aware device types
+- media player UI improvements and fixes (e.g., volume control, duration calculation)
+- improved handling of hue color model
+
+### User policy client
+- allow 'master' role to redisplay QR codes
+
+### Developer console
+- no changes
+
+### Utilities
+- list-arp.js: report ifTable contents
+- list-ssdp.js: more output to aid in future debugging
+
 
 ## Release 1.6 "Pecan Waffle" - March 29, 2014
 ## Commit - df14aeda4c4379fe1122845e24adeb7db6fb7f7e
@@ -105,6 +231,7 @@ CHANGELOG
 
 ### Utilities
 - no changes
+
 
 ## Release 1.5 "Ground Hog" - March 1, 2014
 ## Commit - ddc6a500d20b6065c6e5b19611afb224878e4c66
@@ -206,6 +333,7 @@ CHANGELOG
 ### Utilities
 - no changes
 
+
 ## Release 1.4 "Resolutions" - January 24, 2014
 ## Commit - 9ca2c07b2d7b8e470b5cfe94d697449b5579af8f
 
@@ -301,6 +429,7 @@ CHANGELOG
 - add list-ssdp.js and list-notify.js to mimic steward's algorithm for listening for SSDP responses
 - run.sh reminds developers that the steward will restart in 10 seconds after failure
 - include developers' .jshintrc in repository
+
 
 ## Release 1.3 "Rudolf" - December 23, 2013
 ## Commit - 62986813b4b6e745ad8d56e3d859f7f30bed4afd

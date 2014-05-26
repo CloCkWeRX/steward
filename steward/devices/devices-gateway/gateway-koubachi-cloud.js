@@ -64,14 +64,14 @@ Cloud.prototype.login = function(self) {
   self.koubachi.logger = utility.logfnx(logger, 'device/' + self.deviceID);
 
   self.koubachi.on('error', function(err) {
-    self.error(self, err);
+    self.error(self, 'background', err);
 
     if (!!self.timer) { clearInterval(self.timer); self.timer = null; }
     setTimeout(function() { self.login(self); }, 30 * 1000);
   }).setConfig(self.info.appkey, self.info.credentials).getPlants(function(err, results) {
     var i;
 
-    if (!!err) { self.koubachi = null; return self.error(self, err); }
+    if (!!err) { self.koubachi = null; return self.error(self, 'setConfig', err); }
 
     self.status = 'ready';
     self.changed();
@@ -84,7 +84,7 @@ Cloud.prototype.login = function(self) {
     self.koubachi.getDevices(function(err, results) {
       var i, id;
 
-      if (!!err) { self.koubachi = null; return self.error(self, err); }
+      if (!!err) { self.koubachi = null; return self.error(self, 'getDevices', err); }
 
       for (i = 0; i < results.length; i++) self.addstation(self, results[i].device);
       for (id in self.plants) if (self.plants.hasOwnProperty(id)) self.addplant(self, self.plants[id]);
@@ -92,10 +92,10 @@ Cloud.prototype.login = function(self) {
   });
 };
 
-Cloud.prototype.error = function(self, err) {
+Cloud.prototype.error = function(self, event, err) {
   self.status = (err.message.indexOf('connect') !== -1) ? 'error' : 'reset';
   self.changed();
-  logger.error('device/' + self.deviceID, { diagnostic: err.message });
+  logger.error('device/' + self.deviceID, { event: event, diagnostic: err.message });
 };
 
 Cloud.prototype.scan = function(self) {
@@ -104,14 +104,14 @@ Cloud.prototype.scan = function(self) {
   self.koubachi.getPlants(function(err, results) {
     var i;
 
-    if (!!err) { self.koubachi = null; return self.error(self, err); }
+    if (!!err) { self.koubachi = null; return self.error(self, 'getPlants', err); }
 
     for (i = 0; i < results.length; i++) self.plants[results[i].plant.id] = results[i].plant;
 
     self.koubachi.getDevices(function(err, results) {
       var i, id;
 
-      if (!!err) { self.koubachi = null; return self.error(self, err); }
+      if (!!err) { self.koubachi = null; return self.error(self, 'getDevices', err); }
 
       for (i = 0; i < results.length; i++) self.addstation(self, results[i].device);
       for (id in self.plants) if (self.plants.hasOwnProperty(id)) self.addplant(self, self.plants[id]);
@@ -129,6 +129,7 @@ Cloud.prototype.addstation = function(self, station) {
            , lastSample   : last.getTime()
            , nextSample   : next
            , moisture     : (station.recent_soilmoisture_reading_si_value / 100).toFixed(2)    // pascals to mbars
+           , waterVolume  : parseInt(station.recent_soilmoisture_reading_value, 10).toFixed(2)
            , temperature  : station.recent_temperature_reading_si_value.toFixed(2) - 273.15    // kevlin to celsius
            , light        : station.recent_light_reading_si_value.toFixed(1)
            , batteryLevel : (station.virtual_battery_level * 100).toFixed(2)
@@ -300,5 +301,9 @@ exports.start = function() {
 
     logger.debug(tag, { ipaddr: ipaddr, macaddr: macaddr });
     newaddrs[macaddr] = ipaddr;
+  });
+
+  utility.acquire2(__dirname + '/../*/*-koubachi-*.js', function(err) {
+    if (!!err) logger('koubachi-cloud', { event: 'glob', diagnostic: err.message });
   });
 };

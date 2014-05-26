@@ -1,4 +1,4 @@
-// OpenZ-Wave - using a USB stick
+// Open Z-Wave - using a USB stick
 
 var openzwave
   , utility     = require('./../../core/utility')
@@ -399,5 +399,9 @@ exports.start = function() {
     for (comName in scanning) if (scanning.hasOwnProperty(comName)) { try { scanning[comName].disconnect(); } catch(ex) {} }
   });
 
-  scan();
+  utility.acquire2(__dirname + '/../*/*-zwave-*.js', function(err) {
+    if (!!err) logger('openzwave-usb', { event: 'glob', diagnostic: err.message });
+
+    scan();
+  });
 };
