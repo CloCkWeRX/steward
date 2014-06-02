@@ -1,9 +1,20 @@
 // Insteon LampLinc: http://www.insteon.com/2457D2-lamplinc-dual-band.html
 
+var pair
+  , utility     = require('./../../core/utility')
+  ;
+
+try {
+  pair = require('./../devices-gateway/gateway-insteon-automategreen').pair;
+} catch(ex) {
+  exports.start = function() {};
+
+  return utility.logger('devices').info('failing insteon-dimmer switch (continuing)', { diagnostic: ex.message });
+}
+
 var util        = require('util')
   , devices     = require('./../../core/device')
   , steward     = require('./../../core/steward')
-  , utility     = require('./../../core/utility')
   , plug        = require('./../device-switch')
   ;
 
@@ -26,7 +37,7 @@ var Insteon_Dimmer = exports.Device = function(deviceID, deviceUID, info) {
   self.insteonID = info.device.unit.serial;
   self.info = {};
 
-  if (!self.gateway.roundtrip) self.light = self.gateway.insteon.light(self.insteonID);
+  self.light = self.gateway.insteon.light(self.insteonID);
 
   utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
     if (actor !== ('device/' + self.deviceID)) return;
@@ -42,8 +53,6 @@ util.inherits(Insteon_Dimmer, plug.Device);
 
 
 Insteon_Dimmer.prototype.refresh = function(self) {
-  if (!self.light) return self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '001900');
-
   self.light.level(function(err, level) {
     if (!!err) return logger.error('device/' + self.deviceID, { event: 'light.level', diagnostic: err.message });
 
@@ -127,9 +136,7 @@ Insteon_Dimmer.prototype.perform = function(self, taskID, perform, parameter) {
 
   logger.info('device/' + self.deviceID, { perform: state });
 
-  if (!self.light) {
-    self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '00' + (state.on ? ('11' + state.level) : '1300'));
-  } else if (state.on) {
+  if (state.on) {
     self.light.turnOn(params.level, function(err, results) {/* jshint unused: false */
       if (!!err) return logger.info('device/' + self.deviceID, { event: 'turnOn', diagnostic: err.message });
 
@@ -171,8 +178,6 @@ var validate_perform = function(perform, parameter) {
 
 
 exports.start = function() {
-  var pair;
-
   steward.actors.device['switch'].insteon = steward.actors.device['switch'].insteon ||
       { $info     : { type: '/device/switch/insteon' } };
 
@@ -196,12 +201,8 @@ exports.start = function() {
   devices.makers['Insteon.01ef'] = Insteon_Dimmer;
   devices.makers['Insteon.0120'] = Insteon_Dimmer;
 
-  try {
-    pair = require('./../devices-gateway/gateway-insteon-automategreen').pair;
-
-    pair ({ '/device/switch/insteon/dimmer'      : { maker   : Insteon_Dimmer
-                                                   , entries : [ '0100', '010e', '010f', '0111', '0112', '01ef', '0120'  ]
-                                                   }
-          });
-  } catch(ex) { }
+  pair ({ '/device/switch/insteon/dimmer'      : { maker   : Insteon_Dimmer
+                                                 , entries : [ '0100', '010e', '010f', '0111', '0112', '01ef', '0120'  ]
+                                                 }
+        });
 };

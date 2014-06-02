@@ -1,9 +1,20 @@
 // Insteon ApplianceLinc: http://www.insteon.com/2456s3-appliancelinc.html
 
+var pair
+  , utility     = require('./../../core/utility')
+  ;
+
+try {
+  pair = require('./../devices-gateway/gateway-insteon-automategreen').pair;
+} catch(ex) {
+  exports.start = function() {};
+
+  return utility.logger('devices').info('failing insteon-onoff switch (continuing)', { diagnostic: ex.message });
+}
+
 var util        = require('util')
   , devices     = require('./../../core/device')
   , steward     = require('./../../core/steward')
-  , utility     = require('./../../core/utility')
   , plug        = require('./../device-switch')
   ;
 
@@ -26,7 +37,7 @@ var Insteon_OnOff = exports.Device = function(deviceID, deviceUID, info) {
   self.insteonID = info.device.unit.serial;
   self.info = {};
 
-  if (!self.gateway.roundtrip) self.light = self.gateway.insteon.light(self.insteonID);
+  self.light = self.gateway.insteon.light(self.insteonID);
 
   utility.broker.subscribe('actors', function(request, taskID, actor, perform, parameter) {
     if (actor !== ('device/' + self.deviceID)) return;
@@ -42,8 +53,6 @@ util.inherits(Insteon_OnOff, plug.Device);
 
 
 Insteon_OnOff.prototype.refresh = function(self) {
-  if (!self.light) return self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '001900');
-
   self.light.level(function(err, brightness) {
     if (!!err) return logger.error('device/' + self.deviceID, { event: 'light.level', diagnostic: err.message });
 
@@ -108,16 +117,12 @@ Insteon_OnOff.prototype.perform = function(self, taskID, perform, parameter) {
 
   logger.info('device/' + self.deviceID, { perform: state });
 
-  if (!self.light) {
-    self.gateway.roundtrip(self.gateway, '0262' + self.insteonID + '00' + (state.on ? '12FF' : '1400'));
-  } else {
-    event = state.on ? 'turnOnFast' : 'turnOffFast';
-    self.light[event](function(err, results) {/* jshint unused: false */
-      if (!!err) return logger.info('device/' + self.deviceID, { event: event, diagnostic: err.message });
+  event = state.on ? 'turnOnFast' : 'turnOffFast';
+  self.light[event](function(err, results) {/* jshint unused: false */
+    if (!!err) return logger.info('device/' + self.deviceID, { event: event, diagnostic: err.message });
 
-      self.onoff(self, state.on);
-    });
-  }
+    self.onoff(self, state.on);
+  });
   return steward.performed(taskID);
 };
 
@@ -142,8 +147,6 @@ var validate_perform = function(perform, parameter) {
 
 
 exports.start = function() {
-  var pair;
-
   steward.actors.device['switch'].insteon = steward.actors.device['switch'].insteon ||
       { $info     : { type: '/device/switch/insteon' } };
 
@@ -163,13 +166,11 @@ exports.start = function() {
   devices.makers['Insteon.0230'] = Insteon_OnOff;
   devices.makers['Insteon.0235'] = Insteon_OnOff;
   devices.makers['Insteon.0236'] = Insteon_OnOff;
+  devices.makers['Insteon.0237'] = Insteon_OnOff;
+  devices.makers['Insteon.0238'] = Insteon_OnOff;
 
-  try {
-    pair = require('./../devices-gateway/gateway-insteon-automategreen').pair;
-
-    pair ({ '/device/switch/insteon/onoff' : { maker   :   Insteon_OnOff
-                                             , entries : [ '0209', '022d', '0230', '0235', '0236'  ]
-                                             }
-          });
-  } catch(ex) { }
+  pair ({ '/device/switch/insteon/onoff' : { maker   :   Insteon_OnOff
+                                           , entries : [ '0209', '022d', '0230', '0235', '0236', '0237', '0238' ]
+                                           }
+        });
 };

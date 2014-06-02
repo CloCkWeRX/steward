@@ -90,6 +90,8 @@ Gateway.prototype.scan = function(self) {
 
       if (!!err) return logger.error('device/' + self.deviceID, { event: 'links', diagnostic: err.message });
 
+      if (typeof links === 'undefined') return;
+
       var f = function(id) {
         return function(err, info) {
           if (!!err) return logger.error('device/' + self.deviceID, { event: 'info', id: id, diagnostic: err.message });
@@ -99,6 +101,7 @@ Gateway.prototype.scan = function(self) {
       };
 
       for (i = 0; i < links.length; i++) {
+        if (typeof links[i] === 'undefined') continue;
         id = links[i].id;
 
         if (!!self.seen[id]) continue;
@@ -120,7 +123,8 @@ Gateway.prototype.announce = function(self, data) {
   }
   productCode = (new Buffer([data.deviceCategory.id, data.deviceSubcategory.id])).toString('hex');
   if (!deviceTypes[productCode]) {
-    return logger.warning('device/' + self.deviceID, { event: 'unable to determine product category', data: data });
+    return logger.warning('device/' + self.deviceID,
+                          { event: 'unable to determine product category for ' + productCode, data: data });
   }
   address = sixtoid(data.id);
 
@@ -156,7 +160,7 @@ var pair = function(socket, ipaddr, portno, macaddr, tag) {
   socket.on('data', function(data) {
     var address, deviceType, firmware, i, id, info, manufacturer, modelName, modelNo, message, productCode, x;
 
-    buffer = !!buffer ? Buffer.concat([ buffer, data ]) : data;
+    buffer = (!!buffer) ? Buffer.concat([ buffer, data ]) : data;
 
     for (i = 0; i < buffer.length; i++) if (buffer[i] == 0x02) break;
     if (i !== 0) buffer = ((i + 1) < buffer.length) ? buffer.slice(i + 1) : null;
@@ -281,40 +285,31 @@ exports.pair = function(pairings) {
 
 var scanning      = {};
 
-var fingerprints  =
-  [
-    { vendor         : 'INSTEON'
-    , modelName      : 'PowerLinc #2413U'
-    , description    : 'Insteon PowerLinc USB (Dual-Band) #2413U'
-    , manufacturer   : 'FTDI'
-    , vendorId       : 0x0403
-    , productId      : 0x6001
-    , pnpId          : 'usb-FTDI_FT232R_USB_UART_'
-    }
-  ];
-
 var scan = function() {
   serialport.list(function(err, info) {
-    var i, j;
+    var configuration, fingerprint, i, j;
 
     if (!!err) return logger2.error('insteon-automategreen', { diagnostic: err.message });
 
+    configuration = utility.configuration.serialPorts && utility.configuration.serialPorts['insteon-automategreen'];
+    if (!configuration) return;
+    
     for (i = 0; i < info.length; i++) {
-      for (j = fingerprints.length - 1; j !== -1; j--) {
-        if ((info[i].pnpId.indexOf(fingerprints[j].pnpId) === 0)
-              || ((     fingerprints[j].manufacturer === info[i].manufacturer)
-                    && (fingerprints[j].vendorId     === parseInt(info[i].vendorId, 16))
-                    && (fingerprints[j].productId    === parseInt(info[i].productId, 16)))) {
-          info[i].vendor = fingerprints[j].vendor;
-          info[i].modelName = fingerprints[j].modelName;
-          info[i].description = fingerprints[j].description;
-          if (!info[i].vendorId)     info[i].vendorId     = fingerprints[j].vendorId;
-          if (!info[i].productId)    info[i].productId    = fingerprints[j].productId;
-          if (!info[i].manufacturer) info[i].manufacturer = fingerprints[j].manufacturer;
-          if (!info[i].serialNumber) info[i].serialNumber = info[i].pnpId.substr(fingerprints[j].pnpId.length).split('-')[0];
-          scan1(info[i]);
-        }
+      fingerprint = configuration[info[i].comName];
+      if (!fingerprint) continue;
+
+      info[i].vendor = fingerprint.vendor;
+      info[i].modelName = fingerprint.modelName;
+      info[i].description = fingerprint.description;
+      if (!info[i].vendorId)     info[i].vendorId     = fingerprint.vendorId;
+      if (!info[i].productId)    info[i].productId    = fingerprint.productId;
+      if (!info[i].manufacturer) info[i].manufacturer = fingerprint.manufacturer;
+      if (!info[i].serialNumber) info[i].serialNumber = fingerprint.serialNumber;
+      if (!info[i].serialNumber) {
+        j = info[i].comName.lastIndexOf('-');
+        if (j !== -1) info[i].serialNumber = info[i].comName.substr(j + 1);
       }
+      scan1(info[i]);
     }
   });
 
@@ -342,7 +337,7 @@ var scan1 = function(driver) {
   }).on('data', function(data) {
     var address, deviceType, firmware, i, id, info, manufacturer, modelName, modelNo, message, productCode, x;
 
-    buffer = !!buffer ? Buffer.concat([ buffer, data ]) : data;
+    buffer = (!!buffer) ? Buffer.concat([ buffer, data ]) : data;
 
     for (i = 0; i < buffer.length; i++) if (buffer[i] == 0x02) break;
     if (i !== 0) buffer = ((i + 1) < buffer.length) ? buffer.slice(i + 1) : null;
