@@ -102,7 +102,14 @@ var home = function(state) {
   img.setAttribute('onclick', 'javascript:showVoiceSettings()');
   chart.appendChild(img);
   
-  chart = document.getElementById('chart');
+if (false) {
+  img = document.createElement('img');
+  img.setAttribute('id', 'to-automation');
+  img.setAttribute('src', 'popovers/assets/apprentice.svg');
+  img.setAttribute('title', 'To automation settings...');
+  img.setAttribute('onclick', 'javascript:goApprentices()');
+  chart.appendChild(img);
+}
 
   div = document.createElement('div');
   div.setAttribute('id', 'logo');
@@ -211,28 +218,6 @@ var home = function(state) {
     div.appendChild(span);
     if (++a >= 12) break;
   }
-if (false) {
-  div = document.createElement('div');
-  div.setAttribute('class', 'apprentices');
-  chart.appendChild(div);
-  
-  tag = document.createElement('span');
-  tag.setAttribute('class', 'tag');
-  tag.setAttribute('style', 'background-color: #000; color: #00ba00;');
-  tag.innerHTML = 'apprentices';
-  div.appendChild(tag);
-  span = document.createElement('span');
-  span.innerHTML = ' ';
-  div.appendChild(span);
-  tag = document.createElement('span');
-  tag.setAttribute('class', 'tag');
-  tag.setAttribute('onclick', 'javascript:goApprentices()');
-  tag.innerHTML = 'home&nbsp;autonomy';
-  div.appendChild(tag);
-  span = document.createElement('span');
-  span.innerHTML = ' ';
-  div.appendChild(span);
-}
   div = document.createElement('div');
   div.setAttribute('class', 'wrapper');
   chart.appendChild(div);
@@ -1018,9 +1003,9 @@ var single_climate_instructions = function(device) {
 };
 
 
+var cardinal = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 var azimuth2cardinal = function(deg) {
-  var _directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return _directions[Math.floor((deg % 360) / 22.5)];
+  return cardinal[Math.floor((deg % 360) / 22.5)];
 };
 
 var climate_device_arcs = function(device) {
@@ -1031,16 +1016,16 @@ var climate_device_arcs = function(device) {
 
   if (!device.info.lastSample) device.info.lastSample = device.updated;
   props = sortprops(device.info, [ 'lastSample',
-                                 , 'temperature',     'airQuality',      'voc'
-                                 , 'goalTemperature', 'flame',           'moisture', 'waterVolume',   'waterLevel',
-                                                      'needsWater',      'text'
+                                 , 'temperature',     'airQuality',      'voc',      'rainRate',      'windAverage'
+                                 , 'goalTemperature', 'flame',           'moisture', 'waterVolume',   'rainTotal',
+                                                      'needsWater',      'text',     'windGust'
                                  , 'humidity',        'co2',             'smoke',    'light',         'flow',
-                                                      'needsMist',       'rssi'
+                                                      'needsMist',       'rssi',     'windDirection'
                                  , 'hvac',            'noise',           'co',       'concentration', 'nextSample',
                                                       'needsFertilizer', 'battery',  'batteryLevel',  'location'
                                  , 'away',            'pressure',        'no2'
-				 , 'rainRate',        'rainTotal'
-				 , 'windAverage',     'windGust',        'windDirection'
+                                 , 
+                                 ,         
                                  ]);
 
   for (i = 0; i < props.length; i++) {
@@ -1097,9 +1082,9 @@ var climate_device_arcs = function(device) {
         arcs.splice(1, 0, { name   : prop
                           , raw    : v
                           , label  : 'RAIN RATE'
-                          , cooked : v.toFixed(2) + 'mm/h'
-                          , value  : clip2bars(v, 0, 200)
-                          , index  : 0.50
+                          , cooked : (metric) ? v.toFixed(2) + 'mm' : (v * 0.0393701).toFixed(2) + 'in'
+                          , value  : clip2bars(v, 0, metric ? 254 : 10)
+                          , index  : 0.60
                           });
         break;
 
@@ -1109,7 +1094,7 @@ var climate_device_arcs = function(device) {
                           , label  : 'WIND AVERAGE'
                           , cooked : v.toFixed(2) + 'm/s'
                           , value  : clip2bars(v, 0, 50)
-                          , index  : 0.50
+                          , index  : 0.60
                           });
         break;
 
@@ -1156,12 +1141,12 @@ var climate_device_arcs = function(device) {
                           });
         break;
 
-      case 'waterLevel':
+      case 'rainTotal':
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'PRECIPITATION'
-                          , cooked : v.toFixed(2) + 'mm'
-                          , value  : clip2bars(v, 0, 10)
+                          , cooked : (metric) ? v.toFixed(2) + 'mm' : (v * 0.0393701).toFixed(2) + 'in'
+                          , value  : clip2bars(v, 0, metric ? 254 : 10)
                           , index  : 0.50
                           });
         break;
@@ -1182,16 +1167,6 @@ var climate_device_arcs = function(device) {
                           , label  : 'CONDITIONS'
                           , cooked : v
                           , value  : clip2bars(v.length ? 100 : 0, 0, 100)
-                          , index  : 0.50
-                          });
-        break;
-
-      case 'rainTotal':
-        arcs.splice(2, 0, { name   : prop
-                          , raw    : v
-                          , label  : 'RAIN TOTAL'
-                          , cooked : v.toFixed(2) + 'mm'
-                          , value  : clip2bars(v, 0, 1000)
                           , index  : 0.50
                           });
         break;

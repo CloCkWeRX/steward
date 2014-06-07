@@ -90,7 +90,7 @@ Gateway.prototype.scan = function(self) {
 
       if (!!err) return logger.error('device/' + self.deviceID, { event: 'links', diagnostic: err.message });
 
-      if (typeof links === 'undefined') return;
+      if (typeof links === 'undefined' || typeof links === null) return;
 
       var f = function(id) {
         return function(err, info) {
@@ -101,7 +101,7 @@ Gateway.prototype.scan = function(self) {
       };
 
       for (i = 0; i < links.length; i++) {
-        if (typeof links[i] === 'undefined') continue;
+        if (typeof links[i] === 'undefined' || typeof links[i] === null) continue;
         id = links[i].id;
 
         if (!!self.seen[id]) continue;
