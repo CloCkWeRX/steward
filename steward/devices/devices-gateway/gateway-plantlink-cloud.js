@@ -90,10 +90,10 @@ Cloud.prototype.scan = function(self) {
 
       params = { placement       : plant.environment === 'Inside' ? 'indoors' : 'outdoors'
                , lastSample      : plant.last_measurements[0].updated * 1000
+               , needsWater      : (!!plant.last_measurements[0].moisture)
+                                           && (plant.lower_moisture_threshold > plant.last_measurements[0].moisture)
+                                       ? 'true' : 'false'
                };
-      if (!!plant.last_measurements[0].moisture) {
-        params.needsWater = plant.lower_moisture_threshold > plant.last_measurements[0].moisture ? 'true' : 'false';
-      }
 
       udn = 'plantlink:plant:' + k;
       if (!!devices.devices[udn]) {
@@ -284,7 +284,7 @@ var Station = function(deviceID, deviceUID, info) {
   self.name = info.device.name;
   self.getName ();
 
-  self.info = {};
+  self.info = { lastSample: null };
   if (!!info.params.status) {
     self.status = info.params.status;
     delete(info.params.status);
@@ -337,8 +337,9 @@ exports.start = function() {
       { $info     : { type       : '/device/gateway/plantlink/station'
                     , observe    : [ ]
                     , perform    : [ 'wake' ]
-                    , properties : { name    : true
-                                   , status  : [ 'present' ]
+                    , properties : { name       : true
+                                   , status     : [ 'present' ]
+                                   , lastSample : 'timestamp'
                                    }
                     }
       , $validate : { perform    : devices.validate_perform }
@@ -412,7 +413,7 @@ CloudAPI.prototype.getGarden = function(callback) {
     var k, link, plant, station;
 
     if (!!err) {
-      if (count === 0) return self.logger.error(event, { exception: err });
+      if (count === 0) return self.logger.error('getGarden', { event: event, diagnostic: err.message });
 
       count = 0;
       return callback(err);

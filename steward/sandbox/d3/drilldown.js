@@ -102,14 +102,12 @@ var home = function(state) {
   img.setAttribute('onclick', 'javascript:showVoiceSettings()');
   chart.appendChild(img);
   
-if (false) {
   img = document.createElement('img');
   img.setAttribute('id', 'to-automation');
   img.setAttribute('src', 'popovers/assets/apprentice.svg');
   img.setAttribute('title', 'To automation settings...');
   img.setAttribute('onclick', 'javascript:goApprentices()');
   chart.appendChild(img);
-}
 
   div = document.createElement('div');
   div.setAttribute('id', 'logo');
@@ -1082,7 +1080,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(1, 0, { name   : prop
                           , raw    : v
                           , label  : 'RAIN RATE'
-                          , cooked : (metric) ? v.toFixed(2) + 'mm' : (v * 0.0393701).toFixed(2) + 'in'
+                          , cooked : (metric) ? v.toFixed(1) + 'mm' : (v * 0.0393701).toFixed(1) + 'in'
                           , value  : clip2bars(v, 0, metric ? 254 : 10)
                           , index  : 0.60
                           });
@@ -1092,7 +1090,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(1, 0, { name   : prop
                           , raw    : v
                           , label  : 'WIND AVERAGE'
-                          , cooked : v.toFixed(2) + 'm/s'
+                          , cooked : v.toFixed(1) + 'm/s'
                           , value  : clip2bars(v, 0, 50)
                           , index  : 0.60
                           });
@@ -1145,7 +1143,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'PRECIPITATION'
-                          , cooked : (metric) ? v.toFixed(2) + 'mm' : (v * 0.0393701).toFixed(2) + 'in'
+                          , cooked : (metric) ? v.toFixed(1) + 'mm' : (v * 0.0393701).toFixed(1) + 'in'
                           , value  : clip2bars(v, 0, metric ? 254 : 10)
                           , index  : 0.50
                           });
@@ -1175,7 +1173,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(2, 0, { name   : prop
                           , raw    : v
                           , label  : 'WIND GUST'
-                          , cooked : v.toFixed(2) + 'm/s'
+                          , cooked : v.toFixed(1) + 'm/s'
                           , value  : clip2bars(v, 0, 50)
                           , index  : 0.50
                           });
@@ -1399,7 +1397,7 @@ var climate_device_arcs = function(device) {
         arcs.splice(5, 0, { name   : prop
                           , raw    : v
                           , label  : 'PRESSURE'
-                          , cooked : v.toFixed(3) + ' mbars'
+                          , cooked : v.toFixed(0) + ' mbars'
                           , value  : clip2bars(v, 980, 1060)
                           , index  : 0.20
                           });
@@ -2094,7 +2092,7 @@ var weather_arcs = function(device) {
         arcs.splice(3, 0, { name   : prop
                           , raw    : v
                           , label  : 'PRESSURE'
-                          , cooked : v.toFixed(3) + ' mbars'
+                          , cooked : v.toFixed(0) + ' mbars'
                           , value  : clip2bars(v, 980, 1060)
                           , index  : 0.40
                           });

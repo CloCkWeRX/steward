@@ -23,7 +23,7 @@ var Thermostat = exports.Device = function(deviceID, deviceUID, info) {
   self.getName();
 
   self.hvac = info.hvac;
-  self.info = {};
+  self.status = self.initInfo({});
 
   self.hvac.on('stateChange', function(state) {
 // { AC_FUN_ENABLE: 'Enable',
@@ -269,11 +269,6 @@ Thermostat.prototype.perform = function(self, taskID, perform, parameter) {
   if (!Thermostat.operations[perform]) return devices.perform(self, taskID, perform, parameter);
 
   Thermostat.operations[perform](this, params);
-  setTimeout(function () {
-    if (self.gateway) {
-      self.gateway.scan(self); 
-    }
-  }, 1 * 1000);
   return steward.performed(taskID);
 };
 

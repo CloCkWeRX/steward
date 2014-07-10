@@ -115,6 +115,8 @@ exports.logger = function(x) {
   logger.log = function(level, msg) {
     var callback, entity, meta;
 
+    if (typeof msg !== 'string') throw new Error('invalid logging argument: expecting string, not ' + (typeof msg));
+
     if (arguments.length === 3) {
       if (typeof arguments[2] === 'function') {
         meta = {};
